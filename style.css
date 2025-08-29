@@ -95,3 +95,12 @@ li span[contenteditable="true"]:focus {
 
 .download-btn { background: #3a86ff; }
 .reset-btn { background: #ef233c; }
+
+.timestamp {
+  margin-left: 8px;
+  font-size: 0.9em;
+  color: #333;
+  cursor: text;
+  border-bottom: 1px dashed #999;
+}
+

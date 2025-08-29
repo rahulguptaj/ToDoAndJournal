@@ -1,147 +1,170 @@
-let data = { todos: [], journal: [] };
-
-function getTime() {
+// ====================== UTILITIES ======================
+function getTimeStamp(label) {
   const now = new Date();
-  return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `[${label}: ${now.getHours().toString().padStart(2, "0")}:${now
+    .getMinutes()
+    .toString()
+    .padStart(2, "0")}]`;
 }
 
-function saveData() {
-  localStorage.setItem("todoJournalData", JSON.stringify(data));
-}
-
-function loadData() {
-  const saved = localStorage.getItem("todoJournalData");
-  if (saved) data = JSON.parse(saved);
-  render();
-}
-
-function render() {
-  renderTodos();
-  renderJournal();
-}
-
-function renderTodos() {
-  const list = document.getElementById("todoList");
-  list.innerHTML = "";
-  data.todos.forEach((t, i) => {
-    const li = document.createElement("li");
-    li.className = "todo-item";
-
-    const span = document.createElement("span");
-    span.textContent = t.text;
-    span.contentEditable = "true";
-    span.onblur = () => {
-      data.todos[i].text = span.textContent;
-      saveData();
-    };
-
-    const time = document.createElement("span");
-    time.className = "time";
-    time.textContent = `[Added: ${t.added}]`;
-
-    const btn = document.createElement("button");
-    btn.textContent = "✔️";
-    btn.onclick = () => {
-      const completedTime = getTime();
-      data.journal.push({
-        text: t.text,
-        added: t.added,
-        completed: completedTime
-      });
-      data.todos.splice(i, 1);
-      saveData();
-      render();
-    };
-
-    li.appendChild(span);
-    li.appendChild(time);
-    li.appendChild(btn);
-    list.appendChild(li);
-  });
-}
-
-function renderJournal() {
-  const list = document.getElementById("journalList");
-  list.innerHTML = "";
-  data.journal.forEach((j, i) => {
-    const li = document.createElement("li");
-    li.className = "journal-item";
-
-    const span = document.createElement("span");
-    span.textContent = j.text;
-    span.contentEditable = "true";
-    span.onblur = () => {
-      data.journal[i].text = span.textContent;
-      saveData();
-    };
-
-    const time = document.createElement("span");
-    time.className = "time";
-    if (j.completed) {
-      time.textContent = `[Added: ${j.added}] [Completed: ${j.completed}]`;
-    } else {
-      time.textContent = `[Logged: ${j.logged}]`;
-    }
-
-    li.appendChild(span);
-    li.appendChild(time);
-    list.appendChild(li);
-  });
-}
-
-// Add ToDo
+// ====================== TODO ======================
 function addTodo() {
   const input = document.getElementById("todoInput");
   const text = input.value.trim();
   if (!text) return;
-  data.todos.push({ text, added: getTime() });
+
+  const li = document.createElement("li");
+
+  // Editable task text
+  const span = document.createElement("span");
+  span.textContent = text;
+  span.contentEditable = true;
+  span.addEventListener("input", saveData);
+  li.appendChild(span);
+
+  // Timestamp
+  const timeSpan = document.createElement("span");
+  timeSpan.textContent = getTimeStamp("Added");
+  timeSpan.className = "timestamp";
+  li.appendChild(timeSpan);
+
+  // Complete button
+  const btn = document.createElement("button");
+  btn.textContent = "✔️";
+  btn.onclick = function () {
+    completeTodo(btn);
+  };
+  li.appendChild(btn);
+
+  document.getElementById("todoList").appendChild(li);
   input.value = "";
   saveData();
-  render();
 }
 
-// Add Journal
-function addJournalEntry() {
+function completeTodo(button) {
+  const li = button.parentElement;
+  const text = li.querySelector("span").textContent;
+  const addedTime = li.querySelector(".timestamp").textContent;
+
+  li.remove();
+
+  const completedTime = getTimeStamp("Completed");
+  addJournalEntry(`${text}`, `${addedTime} ${completedTime}`, true);
+
+  saveData();
+}
+
+// ====================== JOURNAL ======================
+function addJournalEntry(text, time, fromTodo = false) {
   const input = document.getElementById("journalInput");
-  const text = input.value.trim();
-  if (!text) return;
-  data.journal.push({ text, logged: getTime() });
+  const entryText = text || input.value.trim();
+  if (!entryText) return;
+
+  const li = document.createElement("li");
+
+  // Editable text
+  const span = document.createElement("span");
+  span.textContent = entryText;
+  span.contentEditable = true;
+  span.addEventListener("input", saveData);
+  li.appendChild(span);
+
+  // Editable timestamp(s)
+  const timeSpan = document.createElement("span");
+  timeSpan.textContent = time || getTimeStamp("Logged");
+  timeSpan.contentEditable = true; // ✅ allow manual edits
+  timeSpan.className = "timestamp";
+  timeSpan.addEventListener("input", saveData);
+  li.appendChild(timeSpan);
+
+  document.getElementById("journalList").appendChild(li);
   input.value = "";
   saveData();
-  render();
 }
 
-// Download JSON
+// ====================== STORAGE ======================
+function saveData() {
+  const todos = [];
+  document.querySelectorAll("#todoList li").forEach((li) => {
+    const text = li.querySelector("span").textContent;
+    const time = li.querySelector(".timestamp").textContent;
+    todos.push({ text, time });
+  });
+
+  const journals = [];
+  document.querySelectorAll("#journalList li").forEach((li) => {
+    const text = li.querySelector("span").textContent;
+    const time = li.querySelector(".timestamp").textContent;
+    journals.push({ text, time });
+  });
+
+  localStorage.setItem("todoData", JSON.stringify({ todos, journals }));
+}
+
+function loadData() {
+  const data = JSON.parse(localStorage.getItem("todoData"));
+  if (!data) return;
+
+  data.todos.forEach((t) => {
+    const li = document.createElement("li");
+
+    const span = document.createElement("span");
+    span.textContent = t.text;
+    span.contentEditable = true;
+    span.addEventListener("input", saveData);
+    li.appendChild(span);
+
+    const timeSpan = document.createElement("span");
+    timeSpan.textContent = t.time;
+    timeSpan.className = "timestamp";
+    li.appendChild(timeSpan);
+
+    const btn = document.createElement("button");
+    btn.textContent = "✔️";
+    btn.onclick = function () {
+      completeTodo(btn);
+    };
+    li.appendChild(btn);
+
+    document.getElementById("todoList").appendChild(li);
+  });
+
+  data.journals.forEach((j) => {
+    addJournalEntry(j.text, j.time, true);
+  });
+}
+
+// ====================== EXPORT / RESET ======================
 function downloadData() {
+  const data = JSON.parse(localStorage.getItem("todoData")) || { todos: [], journals: [] };
   const exportData = {
-    date: new Date().toLocaleDateString(),
+    date: new Date().toISOString().split("T")[0],
     todos: data.todos,
-    journal: data.journal
+    journals: data.journals,
   };
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `todo_journal_${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `todo-journal-${exportData.date}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-// Reset
 function resetData() {
-  if (confirm("Clear all data?")) {
-    data = { todos: [], journal: [] };
-    saveData();
-    render();
+  if (confirm("Are you sure you want to clear all data?")) {
+    localStorage.removeItem("todoData");
+    document.getElementById("todoList").innerHTML = "";
+    document.getElementById("journalList").innerHTML = "";
   }
 }
 
-// Enter key support
-document.getElementById("todoInput").addEventListener("keypress", e => {
+// ====================== EVENT LISTENERS ======================
+document.getElementById("todoInput").addEventListener("keypress", (e) => {
   if (e.key === "Enter") addTodo();
 });
-document.getElementById("journalInput").addEventListener("keypress", e => {
+document.getElementById("journalInput").addEventListener("keypress", (e) => {
   if (e.key === "Enter") addJournalEntry();
 });
 
-loadData();
+window.onload = loadData;
