@@ -104,3 +104,8 @@ li span[contenteditable="true"]:focus {
   border-bottom: 1px dashed #999;
 }
 
+.todo-item.in-progress {
+  background-color: #fff3cd; /* light yellow */
+  border-left: 4px solid orange;
+}
+
