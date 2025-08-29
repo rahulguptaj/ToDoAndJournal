@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Task + Journal Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <h1 class="title">🌟 Task + Journal Tracker</h1>
+
+  <div class="wrapper">
+    <!-- To-Do Column -->
+    <div class="container todo">
+      <h2>📝 To-Do List</h2>
+      <input type="text" id="todoInput" placeholder="Enter task..." />
+      <button onclick="addTodo()">Add</button>
+      <ul id="todoList"></ul>
+    </div>
+
+    <!-- Journal Column -->
+    <div class="container journal">
+      <h2>📘 Task Journal</h2>
+      <input type="text" id="journalInput" placeholder="Enter journal entry..." />
+      <button onclick="addJournalEntry()">Add</button>
+      <ul id="journalList"></ul>
+      <div class="controls">
+        <button class="download-btn" onclick="downloadData()">📥 Download JSON</button>
+        <button class="reset-btn" onclick="resetData()">🧹 Reset All</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
