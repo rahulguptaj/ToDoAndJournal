@@ -1,39 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <title>Task + Journal Tracker</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 <body>
+  <header>
+    <h1>✅ Task + Journal Tracker</h1>
+  </header>
 
-  <h1 class="title">🌟 Task + Journal Tracker</h1>
-
-  <div class="wrapper">
-    <!-- To-Do Column -->
-    <div class="container todo">
-      <h2>📝 To-Do List</h2>
-      <input type="text" id="todoInput" placeholder="Enter task..." />
-      <button onclick="addTodo()">Add</button>
-      <ul id="todoList"></ul>
-    </div>
-
-    <!-- Journal Column -->
-    <div class="container journal">
-      <h2>📘 Task Journal</h2>
-      <input type="text" id="journalInput" placeholder="Enter journal entry..." />
-      <button onclick="addJournalEntry()">Add</button>
-      <ul id="journalList"></ul>
+  <main class="main-container">
+    <!-- To-Do Panel -->
+    <section class="panel" id="todoPanel">
+      <h2>📝 To-Do</h2>
       <div class="controls">
-        <button class="download-btn" onclick="downloadData()">📥 Download Csv</button>
-        <button class="reset-btn" onclick="resetData()">🧹 Reset All</button>
+        <input id="todoInput" type="text" placeholder="Enter task..." />
+        <select id="todoCategory"></select>
+        <button id="addTodoBtn">➕ Add</button>
       </div>
-    </div>
+      <ul id="todoList" class="list"></ul>
+    </section>
+
+    <!-- Journal Panel -->
+    <section class="panel" id="journalPanel">
+      <h2>📘 Journal</h2>
+      <div class="controls">
+        <input id="journalInput" type="text" placeholder="Enter journal entry..." />
+        <select id="journalCategory"></select>
+        <button id="addJournalBtn">➕ Add</button>
+      </div>
+      <ul id="journalList" class="list"></ul>
+    </section>
+  </main>
+
+  <!-- Central actions -->
+  <div class="center-actions">
+    <button id="downloadCsvBtn">📥 Download CSV</button>
+    <button id="resetTodosBtn">🧹 Reset Tasks</button>
+    <button id="resetJournalBtn">🧹 Reset Journal</button>
   </div>
+
+  <!-- Categories -->
+  <section class="categories">
+    <h3>📂 Categories</h3>
+    <div class="cat-controls">
+      <input id="newCategoryInput" type="text" placeholder="New category..." />
+      <button id="addCategoryBtn">➕ Add Category</button>
+    </div>
+    <ul id="categoryList" class="cat-list"></ul>
+  </section>
 
   <script src="script.js"></script>
 </body>
 </html>
-
-
