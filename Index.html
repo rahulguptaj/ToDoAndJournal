@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Tools</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .tools-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      width: 100%;
+      max-width: 800px;
+    }
+    .tool-card {
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .tool-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .tool-card h2 {
+      margin: 0 0 10px;
+      color: #007BFF;
+    }
+    .tool-card p {
+      color: #555;
+      margin-bottom: 15px;
+    }
+    .tool-card a {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 5px;
+      background: #007BFF;
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    .tool-card a:hover {
+      background: #0056b3;
+    }
+    @media (min-width: 700px) {
+      .tools-container {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>My Tools</h1>
+
+  <div class="tools-container">
+    <div class="tool-card">
+      <h2>🎵 Audio Player</h2>
+      <p>Play your local audio files and manage playlists.</p>
+      <a href="https://rahulguptaj.github.io/ToDoAndJournal/mp3Player.html">Open Player</a>
+    </div>
+
+    <div class="tool-card">
+      <h2>📝 To-Do List</h2>
+      <p>Keep track of your daily tasks in a simple list.</p>
+      <a href="https://rahulguptaj.github.io/ToDoAndJournal/ToDo.html">Open To-Do</a>
+    </div>
+
+    <div class="tool-card">
+      <h2>⏰ Time Converter</h2>
+      <p>Convert between different time zones easily.</p>
+      <a href="https://rahulguptaj.github.io/ToDoAndJournal/ist-et-extension/popup.html">Open Converter</a>
+    </div>
+  </div>
+</body>
+</html>
