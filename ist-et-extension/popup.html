@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IST ↔ ET</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 14px; width: 340px; color: #222; }
+      h1 { font-size: 16px; margin: 0 0 8px 0; }
+      .row { display: grid; gap: 8px; margin-bottom: 12px; }
+      label { font-size: 12px; color: #444; }
+      input[type="datetime-local"] {
+        width: 100%; padding: 6px; font-size: 13px; border: 1px solid #bbb; border-radius: 6px;
+      }
+      .meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; margin-top: 6px; }
+      .buttons { display:flex; gap:8px; margin: 10px 0 6px 0; }
+      button {
+        padding: 6px 10px; font-size: 12px; border: 1px solid #888; background: #eee; border-radius: 6px; cursor: pointer;
+      }
+      button:hover { background: #e0e0e0; }
+      .small { font-size: 11px; color: #666; }
+      .cards { display:grid; gap:12px; }
+      .card { border:1px solid #ddd; border-radius:8px; padding:10px; background:#fff; }
+      .dst { font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <h1>IST ↔ ET Converter</h1>
+    <div class="buttons">
+      <button id="swapBtn" title="Swap card order">Swap IST ↔ ET</button>
+      <button id="nowIST">Now (IST)</button>
+      <button id="nowET">Now (ET)</button>
+    </div>
+
+    <div id="cards" class="cards">
+      <section id="istCard" class="card">
+        <div class="row">
+          <label for="istInput">India Standard Time (IST)</label>
+          <input id="istInput" type="datetime-local" />
+          <div class="meta">
+            <span>UTC offset: <strong id="istOffset">+05:30</strong></span>
+            <span class="small">Asia/Kolkata</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="etCard" class="card">
+        <div class="row">
+          <label for="etInput">Eastern Time (ET)</label>
+          <input id="etInput" type="datetime-local" />
+          <div class="meta">
+            <span>UTC offset: <strong id="etOffset">...</strong></span>
+            <span id="dstBadge" class="dst"></span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <p class="small">Type in either box; the other updates instantly. ET handles DST automatically.</p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

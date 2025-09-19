@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "IST ↔ ET Converter (DST-aware)",
+  "version": "1.0.0",
+  "description": "Convert between India Standard Time (IST) and Eastern Time (ET), accounting for ET daylight saving. Includes a Swap toggle.",
+  "action": {
+    "default_title": "IST ↔ ET Converter",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "128": "icon128.png"
+  }
+}
