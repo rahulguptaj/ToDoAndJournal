@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Player</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h2 {
+      margin-bottom: 10px;
+      color: #333;
+      text-align: center;
+    }
+    #folderInput {
+      margin: 10px 0 20px 0;
+    }
+
+    .player-container {
+      display: flex;
+      flex-direction: column; /* Mobile first */
+      width: 100%;
+      max-width: 900px;
+      gap: 20px;
+    }
+
+    #playlist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      flex: 1;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      max-height: 200px;
+      overflow-y: auto;
+	  font-size: 9px;
+    }
+    #playlist li {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #playlist li:hover {
+      background: #f0f0f0;
+    }
+    #playlist li.active {
+      background: #007BFF;
+      color: white;
+      font-weight: bold;
+    }
+
+    .player-controls {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #controls {
+      margin-top: 10px;
+    }
+    button {
+      padding: 8px 15px;
+      margin: 0 5px;
+      border: none;
+      border-radius: 5px;
+      background: #007BFF;
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .active-btn {
+      background: #28a745 !important; /* green when active */
+    }
+    audio {
+      margin-top: 15px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    @media (min-width: 768px) {
+      .player-container {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+      #playlist {
+        max-height: 500px;
+        width: 50%;
+      }
+      .player-controls {
+        width: 50%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2>Player</h2>
+  <input type="file" id="folderInput" webkitdirectory multiple>
+  
+  <div class="player-container">
+    
+    
+    <div class="player-controls">
+      <div id="controls">
+        <button id="prevBtn">⏮ Prev</button>
+        <button id="nextBtn">Next ⏭</button>
+        <button id="repeatBtn">🔁 Repeat Off</button>
+      </div>
+      <audio id="audioPlayer" controls></audio>
+    </div>
+	
+	<ul id="playlist"></ul>
+  </div>
+
+  <script>
+    const folderInput = document.getElementById("folderInput");
+    const playlist = document.getElementById("playlist");
+    const audioPlayer = document.getElementById("audioPlayer");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const repeatBtn = document.getElementById("repeatBtn");
+    
+    let files = [];
+    let currentIndex = 0;
+    let repeatMode = false;
+
+    folderInput.addEventListener("change", function() {
+      files = Array.from(this.files).filter(file => file.type.startsWith("audio/"));
+      playlist.innerHTML = "";
+      
+      files.forEach((file, index) => {
+        const li = document.createElement("li");
+        li.textContent = file.name;
+        li.addEventListener("click", () => playFile(index));
+        playlist.appendChild(li);
+      });
+      
+      if (files.length > 0) {
+        playFile(0);
+      }
+    });
+
+    function playFile(index) {
+      const file = files[index];
+      if (file) {
+        currentIndex = index;
+        const url = URL.createObjectURL(file);
+        audioPlayer.src = url;
+        audioPlayer.play();
+        highlightActive();
+      }
+    }
+
+    function highlightActive() {
+      Array.from(playlist.children).forEach((li, i) => {
+        li.classList.toggle("active", i === currentIndex);
+      });
+    }
+
+    prevBtn.addEventListener("click", () => {
+      if (currentIndex > 0) {
+        playFile(currentIndex - 1);
+      }
+    });
+
+    nextBtn.addEventListener("click", () => {
+      if (currentIndex < files.length - 1) {
+        playFile(currentIndex + 1);
+      }
+    });
+
+    repeatBtn.addEventListener("click", () => {
+      repeatMode = !repeatMode;
+      audioPlayer.loop = repeatMode; // native HTML5 loop
+      repeatBtn.textContent = repeatMode ? "🔁 Repeat On" : "🔁 Repeat Off";
+      repeatBtn.classList.toggle("active-btn", repeatMode);
+    });
+
+    audioPlayer.addEventListener("ended", () => {
+      if (!repeatMode && currentIndex < files.length - 1) {
+        playFile(currentIndex + 1);
+      }
+    });
+  </script>
+</body>
+</html>
