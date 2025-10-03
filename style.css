@@ -50,8 +50,8 @@ header h1{ text-align:center; margin:0 0 16px; font-size:20px; }
   display:block;
 }
 
-/* structure inside an item: 3 rows */
-.row1, .row2, .row3{ width:100%; }
+/* structure inside an item: 3 rows 
+.row1, .row2, .row3{ width:100%; }*/
 .row1{ display:flex; gap:10px; align-items:center; }
 .cat-badge{ background:var(--chip); color:#1f3b8b; padding:4px 8px; border-radius:999px; font-size:12px; white-space:nowrap; }
 .textStatic{ flex:1; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -64,7 +64,7 @@ header h1{ text-align:center; margin:0 0 16px; font-size:20px; }
 
 /* row3 = action buttons */
 .row3{ margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-.row3 button{ padding:8px 10px; border-radius:8px; border:none; cursor:pointer; font-weight:700; }
+.row3 button{ padding:8px 10px; border-radius:8px; border:none; cursor:pointer; font-weight:300; }
 
 /* classes for button types */
 .btn-start{ background:var(--accent); color:#022; }
@@ -104,3 +104,4 @@ header h1{ text-align:center; margin:0 0 16px; font-size:20px; }
   .main-container{ flex-direction:column; }
   .panel{ width:100% }
 }
+
