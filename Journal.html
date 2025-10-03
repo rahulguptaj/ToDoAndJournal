@@ -1,36 +1,255 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Task + Journal Tracker</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Manager SPA</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f8f8f8; }
+header { padding:10px; background:#007acc; color:white; display:flex; justify-content:space-between; align-items:center; }
+header h1 { margin:0; font-size:1.4em; }
+header button { padding:5px 10px; font-size:0.9em; cursor:pointer; margin-left:5px; }
+
+#add-item-top { padding:10px; display:flex; gap:5px; align-items:center; background:#f0f0f0; }
+#add-item-top select, #add-item-top input, #add-item-top button { padding:5px; font-size:0.95em; }
+#item-text-input { flex:1; }
+
+#projects-container { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:10px; }
+.project { background:white; padding:10px; border-radius:5px; user-select:none; border:1px solid #ccc; overflow:hidden; transition:max-height 0.3s ease, opacity 0.3s ease; }
+.project-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+.project-title { flex:1; margin-right:5px; font-weight:bold; }
+.chevron, .delete-project { cursor:pointer; margin-left:5px; font-size:1.2em; }
+.project-body { display:flex; flex-direction:column; gap:10px; overflow:hidden; transition:max-height 0.3s ease, opacity 0.3s ease; }
+
+.section { background:#f9f9f9; padding:5px; border-radius:5px; display:flex; flex-direction:column; }
+.tasks { background:#eaf6ff; }
+.logs { background:#f3fff0; }
+.section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+.section-items { display:flex; flex-direction:column; gap:3px; }
+.item { padding:5px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; border-radius:3px; max-height:20px; overflow:hidden; transition:max-height 0.3s ease, background 0.3s ease; }
+.item span { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.item.expanded { white-space:normal; max-height:500px; align-items:flex-start; }
+.item:hover { background: rgba(0,0,0,0.05); }
+.item-buttons button { background:none; border:none; cursor:pointer; margin-left:5px; }
+.item.highlight { background: yellow; transition: background 1.5s ease; }
+
+#modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content:center; align-items:center; }
+#modal-content { background:white; padding:20px; border-radius:5px; max-height:80%; overflow-y:auto; width:80%; position:relative; }
+.modal-close { position:absolute; top:10px; right:15px; font-size:1.5em; cursor:pointer; background:none; border:none; }
+
+.modal-body .item-row { padding:8px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center; }
+.modal-body .item-row:nth-child(odd) { background:#f9f9f9; }
+.modal-body .project-name { font-weight:bold; margin-right:5px; }
+.modal-body .timestamp { font-size:0.85em; color:#555; }
+
+body.dark { background:#181818; color:#e0e0e0; }
+body.dark header { background:#222; color:#fff; }
+body.dark #add-item-top { background:#242424; }
+body.dark .project { background:#242424; border-color:#444; color:#e0e0e0; }
+body.dark .tasks { background:#1f2a33; }
+body.dark .logs { background:#23331f; }
+body.dark .section-header strong { color:#fff; }
+body.dark input, body.dark textarea, body.dark select { background:#2a2a2a; color:#e0e0e0; border:1px solid #555; }
+body.dark button { background:#333; color:#e0e0e0; border:1px solid #555; padding:3px 6px; cursor:pointer; }
+body.dark button:hover { background:#444; }
+</style>
 </head>
 <body>
 
-  <h1 class="title">🌟 Task + Journal Tracker</h1>
-
-  <div class="wrapper">
-    <!-- To-Do Column -->
-    <div class="container todo">
-      <h2>📝 To-Do List</h2>
-      <input type="text" id="todoInput" placeholder="Enter task..." />
-      <button onclick="addTodo()">Add</button>
-      <ul id="todoList"></ul>
-    </div>
-
-    <!-- Journal Column -->
-    <div class="container journal">
-      <h2>📘 Task Journal</h2>
-      <input type="text" id="journalInput" placeholder="Enter journal entry..." />
-      <button onclick="addJournalEntry()">Add</button>
-      <ul id="journalList"></ul>
-      <div class="controls">
-        <button class="download-btn" onclick="downloadData()">📥 Download JSON</button>
-        <button class="reset-btn" onclick="resetData()">🧹 Reset All</button>
-      </div>
-    </div>
+<header>
+  <h1>Project Manager</h1>
+  <div>
+    <button id="add-project">Add Project</button>
+    <button id="toggle-accordion">Accordion Mode</button>
+    <button id="download-status">Download Status</button>
+    <button id="view-report">View Report</button>
+    <button id="pending-tasks">Pending Tasks</button>
+    <button id="toggle-theme">Toggle Theme</button>
   </div>
+</header>
 
-  <script src="script.js"></script>
+<div id="add-item-top">
+  <select id="project-select"><option value="">Select Project</option></select>
+  <select id="item-type-select">
+    <option value="tasks">Task</option>
+    <option value="logs">Log</option>
+  </select>
+  <input type="text" id="item-text-input" placeholder="Enter task or log" />
+  <button id="add-item-btn">Add</button>
+</div>
+
+<div id="projects-container"></div>
+
+<div id="modal">
+  <div id="modal-content">
+    <button class="modal-close" id="close-modal">×</button>
+    <h2 id="modal-title"></h2>
+    <div id="modal-body" class="modal-body"></div>
+  </div>
+</div>
+
+<script>
+let projects = JSON.parse(localStorage.getItem('projects_data')||'[]');
+let accordionMode=false;
+let maxProjectsRendered=16;
+let currentTheme = localStorage.getItem('theme')||'light';
+document.body.classList.add(currentTheme);
+
+function saveProjects(){ localStorage.setItem('projects_data',JSON.stringify(projects)); }
+function updateProjectDropdown(){
+  const select=document.getElementById('project-select'); select.innerHTML='<option value="">Select Project</option>';
+  projects.forEach((p,i)=>{ const opt=document.createElement('option'); opt.value=i; opt.textContent=p.name; select.appendChild(opt); });
+}
+
+function renderProjects(){
+  const container=document.getElementById('projects-container'); 
+  container.innerHTML='';
+  container.style.gridTemplateColumns = accordionMode ? '1fr' : 'repeat(2, 1fr)';
+  projects.slice(0,maxProjectsRendered).forEach((p,i)=>{ container.appendChild(createProjectElement(p,i)); });
+  updateProjectDropdown();
+}
+
+function createProjectElement(project,index){
+  const projectEl=document.createElement('div'); projectEl.className='project';
+  const header=document.createElement('div'); header.className='project-header';
+  const titleDiv=document.createElement('div'); titleDiv.className='project-title'; titleDiv.textContent=project.name;
+  const chevron=document.createElement('span'); chevron.className='chevron'; chevron.textContent=project.collapsed?'+':'−';
+  const deleteIcon=document.createElement('span'); deleteIcon.textContent='🗑'; deleteIcon.className='delete-project';
+  deleteIcon.addEventListener('click',e=>{ e.stopPropagation(); if(confirm(`Delete project "${project.name}"?`)){ projects.splice(index,1); saveProjects(); renderProjects(); }});
+  header.append(titleDiv,chevron,deleteIcon);
+
+  header.addEventListener('click',()=>{
+    if(accordionMode){ projects.forEach((p)=>p.collapsed=true); project.collapsed=false; }
+    else project.collapsed=!project.collapsed;
+    renderProjects();
+  });
+
+  const body=document.createElement('div'); body.className='project-body';
+  body.style.maxHeight=project.collapsed?'0px':'1000px'; body.style.opacity=project.collapsed?'0':'1';
+
+  ['tasks','logs'].forEach(type=>{
+    const section=document.createElement('div'); section.className='section '+type;
+    const secHeader=document.createElement('div'); secHeader.className='section-header';
+    const strong=document.createElement('strong'); strong.textContent=type.charAt(0).toUpperCase()+type.slice(1); secHeader.appendChild(strong);
+    section.appendChild(secHeader);
+
+    const itemsDiv=document.createElement('div'); itemsDiv.className='section-items';
+    project[type].forEach(item=>{
+      const itemDiv=document.createElement('div'); itemDiv.className='item';
+      const span=document.createElement('span'); span.textContent=type==='tasks'? item.text : `${item.text} (${item.time.slice(11,16)})`;
+      itemDiv.appendChild(span);
+      itemsDiv.appendChild(itemDiv);
+    });
+    section.appendChild(itemsDiv); body.appendChild(section);
+  });
+  projectEl.append(header,body); return projectEl;
+}
+
+// --- Add Project ---
+document.getElementById('add-project').addEventListener('click',()=>{
+  const name=prompt('Project name:'); if(name){ projects.push({name,tasks:[],logs:[],collapsed:false}); saveProjects(); renderProjects(); }
+});
+
+// --- Add Task / Log ---
+document.getElementById('add-item-btn').addEventListener('click',addItem);
+document.getElementById('item-text-input').addEventListener('keydown',e=>{ if(e.key==='Enter') addItem(); });
+function addItem(){
+  const text=document.getElementById('item-text-input').value.trim();
+  const projIndex=document.getElementById('project-select').value;
+  const type=document.getElementById('item-type-select').value;
+  if(text && projIndex!==''){ 
+    const proj=projects[projIndex];
+    if(type==='tasks') proj.tasks.push({text});
+    else proj.logs.push({text,time:new Date().toISOString()});
+    saveProjects(); renderProjects();
+    document.getElementById('item-text-input').value='';
+    highlightLastItem(projIndex,type);
+  }
+}
+function highlightLastItem(projIndex,type){
+  const container=document.getElementById('projects-container');
+  const projEl=container.children[projIndex]; if(!projEl) return;
+  const section=projEl.querySelector('.'+type+' .section-items'); if(!section) return;
+  const lastItem=section.lastChild; if(!lastItem) return;
+  lastItem.classList.add('highlight'); lastItem.scrollIntoView({behavior:'smooth',block:'center'});
+  setTimeout(()=>{ lastItem.classList.remove('highlight'); },1500);
+}
+
+// --- Pending Tasks ---
+document.getElementById('pending-tasks').addEventListener('click',()=>{
+  const pending = [];
+  projects.forEach(p=>p.tasks.forEach(t=>pending.push({project:p.name,text:t.text})));
+  showModal('Pending Tasks', pending, true);
+});
+
+// --- View Report ---
+document.getElementById('view-report').addEventListener('click',()=>{
+  const combined=[];
+  projects.forEach(p=>{
+    p.tasks.forEach(t=>combined.push({project:p.name,type:'Task',text:t.text,time:null}));
+    p.logs.forEach(l=>combined.push({project:p.name,type:'Log',text:l.text,time:l.time}));
+  });
+  combined.sort((a,b)=> (a.time||'').localeCompare(b.time||''));
+  showModal('Project Report',combined,false);
+});
+
+function showModal(title,items,clickable=false){
+  const modal=document.getElementById('modal'); modal.style.display='flex';
+  document.getElementById('modal-title').textContent=title;
+  const body=document.getElementById('modal-body'); body.innerHTML='';
+  items.forEach((c,i)=>{
+    const div=document.createElement('div'); div.className='item-row';
+    if(clickable){
+      div.style.cursor='pointer';
+      div.addEventListener('click',()=>{
+        if(confirm(`Mark task "${c.text}" as complete?`)){
+          const proj=projects.find(p=>p.name===c.project);
+          const idx=proj.tasks.findIndex(t=>t.text===c.text);
+          if(idx>=0){
+            const task=proj.tasks.splice(idx,1)[0];
+            proj.logs.push({text:task.text,time:new Date().toISOString()});
+            saveProjects(); renderProjects(); showModal(title,items.filter((it,j)=>j!==i),true);
+          }
+        }
+      });
+    }
+    const name=document.createElement('span'); name.className='project-name'; name.textContent=c.project;
+    const text=document.createElement('span'); text.textContent=c.text;
+    const time=document.createElement('span'); time.className='timestamp'; time.textContent=c.time? `(${c.time.slice(0,16)})`:'';
+    div.append(name,text,time); body.appendChild(div);
+  });
+}
+
+document.getElementById('close-modal').addEventListener('click',()=>{ document.getElementById('modal').style.display='none'; });
+
+// --- Accordion Mode ---
+document.getElementById('toggle-accordion').addEventListener('click',()=>{
+  accordionMode=!accordionMode; if(accordionMode) projects.forEach(p=>p.collapsed=true);
+  renderProjects();
+});
+
+// --- Download Status ---
+document.getElementById('download-status').addEventListener('click',()=>{
+  let content='';
+  projects.forEach(p=>{
+    content+=`Project: ${p.name}\nTasks:\n`; p.tasks.forEach(t=>content+=`- ${t.text}\n`);
+    content+='Logs:\n'; p.logs.forEach(l=>{ const dt=new Date(l.time); content+=`- ${l.text} (${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')})\n`; });
+    content+='\n';
+  });
+  const blob=new Blob([content],{type:'text/plain'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='project_status.txt'; a.click(); URL.revokeObjectURL(url);
+});
+
+// --- Theme Toggle ---
+document.getElementById('toggle-theme').addEventListener('click',()=>{
+  document.body.classList.remove(currentTheme);
+  currentTheme=currentTheme==='light'?'dark':'light';
+  document.body.classList.add(currentTheme);
+  localStorage.setItem('theme',currentTheme);
+});
+
+renderProjects();
+</script>
 </body>
 </html>
