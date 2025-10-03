@@ -130,7 +130,7 @@ function renderTodos(){
     row2.appendChild(makeTimeEditor(item, "stopped"));
 
     // row3: actions (Start/Stop, Complete, Edit/Save, Cancel(if editing), Delete)
-    const row3 = document.createElement("div"); row3.className = "row3";
+    const row3 = document.createElement("span"); row3.className = "row3";
 
     const startBtn = document.createElement("button");
     // label logic: if started && !stopped -> Stop, else Start
@@ -317,7 +317,7 @@ function renderJournal(){
     metaStatic.textContent = parts.join("  |  ");
 
     // row3: actions
-    const row3 = document.createElement("div"); row3.className = "row3";
+    const row3 = document.createElement("span"); row3.className = "row3";
     const editBtn = document.createElement("button"); editBtn.className = isEditing ? "btn-save" : "btn-edit";
     editBtn.textContent = isEditing ? "💾 Save" : "✏️ Edit";
     editBtn.onclick = () => {
@@ -403,3 +403,4 @@ document.addEventListener("DOMContentLoaded", () => {
   window.saveEditJournal = saveEditJournal;
   window.cancelEdit = cancelEdit;
 });
+
