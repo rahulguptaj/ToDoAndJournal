@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Office Journal</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      color: #111;
+      max-width: 700px;
+      margin: 10px auto;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0;
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      cursor: pointer;
+      color: white;
+      font-size: 14px;
+    }
+
+    #downloadBtn {
+      background: #10b981;
+    }
+
+    #downloadBtn:hover {
+      background: #059669;
+    }
+
+    #clearBtn {
+      background: #ef4444;
+    }
+
+    #clearBtn:hover {
+      background: #b91c1c;
+    }
+
+    .input-area {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    textarea {
+      flex: 1;
+      height: 25px;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      resize: vertical;
+    }
+
+    #addBtn {
+      background: #2563eb;
+      height: 40px;
+      align-self: flex-start;
+    }
+
+    #addBtn:hover {
+      background: #1e40af;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 10px;
+    }
+
+    li {
+      background: white;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      padding: 10px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .time {
+      color: gray;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Office Journal</h1>
+    <div class="header-buttons">
+      <button id="downloadBtn">Download CSV</button>
+      <button id="clearBtn">Clear All Entries</button>
+    </div>
+  </header>
+
+  <div class="input-area">
+    <textarea id="entryText" placeholder="Write what you did... (Press Enter to add)"></textarea>
+    <button id="addBtn">Add Entry</button>
+  </div>
+
+  <ul id="entriesList"></ul>
+
+  <script>
+    const entryText = document.getElementById('entryText');
+    const addBtn = document.getElementById('addBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const entriesList = document.getElementById('entriesList');
+    const STORAGE_KEY = 'simple_office_journal';
+
+    function loadEntries() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveEntries(entries) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    function renderEntries() {
+      entriesList.innerHTML = '';
+      const entries = loadEntries();
+      entries.forEach(e => {
+        const li = document.createElement('li');
+        li.innerHTML = `<div>${e.text}</div><div class='time'>${e.time}</div>`;
+        entriesList.prepend(li);
+      });
+    }
+
+    function addEntry() {
+      const text = entryText.value.trim();
+      if (!text) return;
+      const now = new Date();
+      const timeStr = now.toLocaleString();
+      const entries = loadEntries();
+      entries.push({ text, time: timeStr });
+      saveEntries(entries);
+      entryText.value = '';
+      renderEntries();
+    }
+
+    function downloadCSV() {
+      const entries = loadEntries();
+      if (entries.length === 0) {
+        alert('No entries to download');
+        return;
+      }
+      let csv = 'Timestamp,Entry\n';
+      entries.forEach(e => {
+        const cleanText = e.text.replace(/\n/g, ' ').replace(/\"/g, '\"\"');
+        csv += `"${e.time}","${cleanText}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `office_journal_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function clearEntries() {
+      if (confirm('Are you sure you want to delete all entries?')) {
+        localStorage.removeItem(STORAGE_KEY);
+        renderEntries();
+      }
+    }
+
+    entryText.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        addEntry();
+      }
+    });
+
+    addBtn.addEventListener('click', addEntry);
+    downloadBtn.addEventListener('click', downloadCSV);
+    clearBtn.addEventListener('click', clearEntries);
+
+    renderEntries();
+  </script>
+</body>
+</html>
