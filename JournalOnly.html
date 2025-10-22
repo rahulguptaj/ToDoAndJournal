@@ -9,99 +9,105 @@
       font-family: Arial, sans-serif;
       background: #f9fafb;
       color: #111;
-      max-width: 700px;
+      max-width: 600px;
       margin: 10px auto;
-      padding: 20px;
+      padding: 10px 20px;
     }
 
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-      gap: 10px;
+      margin-bottom: 10px;
     }
 
     h1 {
-      font-size: 20px;
+      font-size: 18px;
       margin: 0;
     }
 
     .header-buttons {
       display: flex;
-      gap: 10px;
+      gap: 6px;
     }
 
     button {
       border: none;
-      border-radius: 6px;
-      padding: 8px 14px;
+      border-radius: 4px;
+      padding: 6px 10px;
       cursor: pointer;
       color: white;
-      font-size: 14px;
+      font-size: 13px;
     }
 
-    #downloadBtn {
-      background: #10b981;
-    }
+    #downloadBtn { background: #10b981; }
+    #clearBtn { background: #ef4444; }
+    #addBtn { background: #2563eb; }
 
-    #downloadBtn:hover {
-      background: #059669;
-    }
-
-    #clearBtn {
-      background: #ef4444;
-    }
-
-    #clearBtn:hover {
-      background: #b91c1c;
-    }
+    #downloadBtn:hover { background: #059669; }
+    #clearBtn:hover { background: #b91c1c; }
+    #addBtn:hover { background: #1e40af; }
 
     .input-area {
       display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      margin-bottom: 15px;
+      gap: 6px;
+      margin-bottom: 10px;
     }
 
     textarea {
       flex: 1;
       height: 25px;
-      padding: 10px;
-      border-radius: 6px;
+      padding: 6px;
+      border-radius: 4px;
       border: 1px solid #ccc;
-      font-size: 14px;
+      font-size: 13px;
       resize: vertical;
-    }
-
-    #addBtn {
-      background: #2563eb;
-      height: 40px;
-      align-self: flex-start;
-    }
-
-    #addBtn:hover {
-      background: #1e40af;
     }
 
     ul {
       list-style: none;
       padding: 0;
-      margin-top: 10px;
+      margin: 0;
     }
 
     li {
-      background: white;
-      margin-bottom: 10px;
-      border-radius: 6px;
-      padding: 10px;
-      border: 1px solid #e5e7eb;
+      background: #fff;
+      margin-bottom: 6px;
+      border-radius: 4px;
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
     }
 
-    .time {
-      color: gray;
-      font-size: 12px;
+    .entry-text {
+      flex: 1;
+      word-break: break-word;
+    }
+
+    .timestamp {
+      text-align: right;
+      font-size: 11px;
+      color: #666;
+      min-width: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-end;
+    }
+
+    .edit {
+      width: 100%;
+      border: none;
+      padding: 4px;
+      font-size: 13px;
+      background: #f1f5f9;
+      border-radius: 4px;
+      outline: none;
     }
   </style>
 </head>
@@ -109,14 +115,14 @@
   <header>
     <h1>Office Journal</h1>
     <div class="header-buttons">
-      <button id="downloadBtn">Download CSV</button>
-      <button id="clearBtn">Clear All Entries</button>
+      <button id="downloadBtn">Download</button>
+      <button id="clearBtn">Clear All</button>
     </div>
   </header>
 
   <div class="input-area">
-    <textarea id="entryText" placeholder="Write what you did... (Press Enter to add)"></textarea>
-    <button id="addBtn">Add Entry</button>
+    <textarea id="entryText" placeholder="Write what you did... (Enter to add)"></textarea>
+    <button id="addBtn">Add</button>
   </div>
 
   <ul id="entriesList"></ul>
@@ -130,24 +136,51 @@
     const STORAGE_KEY = 'simple_office_journal';
 
     function loadEntries() {
-      try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-      } catch {
-        return [];
-      }
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+      catch { return []; }
     }
 
     function saveEntries(entries) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
     }
 
+    function formatDateTime(dateStr) {
+      const d = new Date(dateStr);
+      return {
+        date: d.toLocaleDateString(),
+        time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+    }
+
     function renderEntries() {
       entriesList.innerHTML = '';
       const entries = loadEntries();
-      entries.forEach(e => {
+      entries.forEach((e, index) => {
+        const { date, time } = formatDateTime(e.time);
         const li = document.createElement('li');
-        li.innerHTML = `<div>${e.text}</div><div class='time'>${e.time}</div>`;
+        li.innerHTML = `
+          <div class="entry-text">${e.text}</div>
+          <div class="timestamp"><div>${date}</div><div>${time}</div></div>
+        `;
+        li.addEventListener('click', () => makeEditable(li, index, e));
         entriesList.prepend(li);
+      });
+    }
+
+    function makeEditable(li, index, entry) {
+      const input = document.createElement('textarea');
+      input.className = 'edit';
+      input.value = entry.text;
+      li.innerHTML = '';
+      li.appendChild(input);
+      input.focus();
+
+      input.addEventListener('blur', () => {
+        entry.text = input.value.trim() || entry.text;
+        const entries = loadEntries();
+        entries[index] = entry;
+        saveEntries(entries);
+        renderEntries();
       });
     }
 
@@ -155,9 +188,8 @@
       const text = entryText.value.trim();
       if (!text) return;
       const now = new Date();
-      const timeStr = now.toLocaleString();
       const entries = loadEntries();
-      entries.push({ text, time: timeStr });
+      entries.push({ text, time: now });
       saveEntries(entries);
       entryText.value = '';
       renderEntries();
@@ -165,14 +197,14 @@
 
     function downloadCSV() {
       const entries = loadEntries();
-      if (entries.length === 0) {
-        alert('No entries to download');
-        return;
-      }
-      let csv = 'Timestamp,Entry\n';
+      if (entries.length === 0) return alert('No entries to download');
+      let csv = 'Date,Time,Entry\n';
       entries.forEach(e => {
-        const cleanText = e.text.replace(/\n/g, ' ').replace(/\"/g, '\"\"');
-        csv += `"${e.time}","${cleanText}"\n`;
+        const d = new Date(e.time);
+        const date = d.toLocaleDateString();
+        const time = d.toLocaleTimeString();
+        const clean = e.text.replace(/\n/g, ' ').replace(/\"/g, '\"\"');
+        csv += `"${date}","${time}","${clean}"\n`;
       });
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
@@ -184,7 +216,7 @@
     }
 
     function clearEntries() {
-      if (confirm('Are you sure you want to delete all entries?')) {
+      if (confirm('Delete all entries?')) {
         localStorage.removeItem(STORAGE_KEY);
         renderEntries();
       }
