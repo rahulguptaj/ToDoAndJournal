@@ -1,239 +1,452 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Office Journal</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9fafb;
-      color: #111;
-      max-width: 600px;
-      margin: 10px auto;
-      padding: 10px 20px;
-    }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Office Journal & ToDos (Tags + Filter + Anim)</title>
+<style>
+  :root{
+    --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --accent:#2563eb;
+    --chip-shadow: 0 6px 18px rgba(15,23,42,0.06);
+  }
+  body{
+    font-family: Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    background:var(--bg); color:#0f172a; margin:24px auto; max-width:1000px; padding:14px;
+  }
 
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
+  header{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  .top-row{display:flex;justify-content:space-between;align-items:center}
+  h1{font-size:18px;margin:0}
+  .header-actions{display:flex;gap:8px}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer}
+  .btn.warn{background:#ef4444} .btn.orange{background:#f59e0b} .btn.secondary{background:#10b981}
 
-    h1 {
-      font-size: 18px;
-      margin: 0;
-    }
+  /* shared tag chips */
+  .chip-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;font-size:13px;cursor:pointer;border:1px solid rgba(15,23,42,0.06)}
+  .chip.active{box-shadow:var(--chip-shadow);transform:translateY(-2px);}
 
-    .header-buttons {
-      display: flex;
-      gap: 6px;
-    }
+  .main{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+  @media(max-width:800px){.main{grid-template-columns:1fr}}
 
-    button {
-      border: none;
-      border-radius: 4px;
-      padding: 6px 10px;
-      cursor: pointer;
-      color: white;
-      font-size: 13px;
-    }
+  .section{background:var(--card);border:1px solid #e6e9ef;border-radius:8px;padding:8px;display:flex;flex-direction:column}
+  .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .section-title{font-weight:600;font-size:14px}
+  .input-row{display:flex;gap:8px;margin-bottom:6px}
+  textarea.input{flex:1;height:44px;padding:6px 8px;border-radius:6px;border:1px solid #d1d5db;font-size:13px;resize:vertical}
+  .small-btn{padding:8px 10px;border-radius:6px;border:0;background:var(--accent);color:#fff;cursor:pointer}
 
-    #downloadBtn { background: #10b981; }
-    #clearBtn { background: #ef4444; }
-    #addBtn { background: #2563eb; }
+  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:56vh;overflow:auto}
+  li.item{
+    display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;border:1px solid #eef2f7;background:#fff;font-size:13px;
+    position:relative; overflow:hidden;
+    transform-origin: left center;
+    transition:transform .18s ease,opacity .18s ease;
+  }
+  li.item.enter{opacity:0;transform:translateY(-6px) scale(.995)}
+  li.item.show{opacity:1;transform:none}
+  li.item.leave{opacity:0;transform:translateY(6px) scale(.995);transition:transform .18s ease,opacity .12s ease}
 
-    #downloadBtn:hover { background: #059669; }
-    #clearBtn:hover { background: #b91c1c; }
-    #addBtn:hover { background: #1e40af; }
+  .left{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .line{display:flex;align-items:center;gap:10px}
+  .text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;flex:1}
+  .text-edit{width:100%;padding:6px;border-radius:6px;border:1px solid #e6eef8;font-size:13px}
 
-    .input-area {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{
+    display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;color:#0f172a;
+    border:1px solid rgba(0,0,0,0.04);
+  }
+  .tag button{background:transparent;border:0;cursor:pointer;font-size:11px;color:#64748b;padding-left:6px}
+  .tag button:hover{color:#111}
 
-    textarea {
-      flex: 1;
-      height: 25px;
-      padding: 6px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      font-size: 13px;
-      resize: vertical;
-    }
+  .timestamp{font-size:11px;color:var(--muted);text-align:right;min-width:86px;line-height:1.1}
+  .right-actions{display:flex;align-items:center;gap:6px;min-width:40px;justify-content:flex-end}
 
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
+  /* icons appear only on hover */
+  .hover-icons{opacity:0;transition:opacity .15s ease}
+  li.item:hover .hover-icons{opacity:1}
 
-    li {
-      background: #fff;
-      margin-bottom: 6px;
-      border-radius: 4px;
-      padding: 6px 8px;
-      border: 1px solid #ddd;
-      font-size: 13px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-    }
+  .icon-btn{background:transparent;border:0;cursor:pointer;padding:6px;font-size:15px;color:#475569}
+  .icon-btn:hover{color:#0f172a}
 
-    .entry-text {
-      flex: 1;
-      word-break: break-word;
-    }
+  /* floating dropdown (absolute but attached to body to avoid scroll reflow) */
+  .tag-dropdown{position:fixed;background:#fff;border:1px solid #e6e9ef;border-radius:8px;padding:8px;box-shadow:0 10px 30px rgba(15,23,42,0.08);z-index:999;width:220px}
+  .tag-dropdown .existing{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .tag-suggest{padding:6px 8px;border-radius:6px;background:#f3f4f6;font-size:13px;cursor:pointer}
+  .tag-dropdown input{width:100%;padding:8px;border-radius:6px;border:1px solid #e5e7eb;font-size:13px}
 
-    .timestamp {
-      text-align: right;
-      font-size: 11px;
-      color: #666;
-      min-width: 80px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: flex-end;
-    }
-
-    .edit {
-      width: 100%;
-      border: none;
-      padding: 4px;
-      font-size: 13px;
-      background: #f1f5f9;
-      border-radius: 4px;
-      outline: none;
-    }
-  </style>
+  /* subtle highlight for active chip */
+  .chip.active{outline:2px solid rgba(0,0,0,0.04)}
+</style>
 </head>
 <body>
   <header>
-    <h1>Office Journal</h1>
-    <div class="header-buttons">
-      <button id="downloadBtn">Download</button>
-      <button id="clearBtn">Clear All</button>
+    <div class="top-row">
+      <h1>Office Journal & ToDos</h1>
+      <div class="header-actions">
+        <button id="downloadBtn" class="btn secondary">Download CSV</button>
+      </div>
+    </div>
+
+    <div>
+      <div id="chipBar" class="chip-bar" aria-label="Tag filter bar"></div>
     </div>
   </header>
 
-  <div class="input-area">
-    <textarea id="entryText" placeholder="Write what you did... (Enter to add)"></textarea>
-    <button id="addBtn">Add</button>
+  <div class="main">
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Activity Log</div>
+        <button id="clearLogsBtn" class="btn warn">Clear</button>
+      </div>
+
+      <div class="input-row">
+        <textarea id="logInput" class="input" placeholder="Quick log — press Enter to add"></textarea>
+        <button id="addLogBtn" class="small-btn">Add</button>
+      </div>
+
+      <ul id="logsList" class="list" aria-live="polite"></ul>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">To-Do List</div>
+        <button id="clearTasksBtn" class="btn orange">Clear</button>
+      </div>
+
+      <div class="input-row">
+        <textarea id="taskInput" class="input" placeholder="Add task — press Enter to add"></textarea>
+        <button id="addTaskBtn" class="small-btn">Add</button>
+      </div>
+
+      <ul id="tasksList" class="list" aria-live="polite"></ul>
+    </div>
   </div>
 
-  <ul id="entriesList"></ul>
+<script>
+/* storage keys */
+const LOGS_KEY='oj_logs_v2', TASKS_KEY='oj_tasks_v2', TAGS_KEY='oj_tags_v2';
 
-  <script>
-    const entryText = document.getElementById('entryText');
-    const addBtn = document.getElementById('addBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const entriesList = document.getElementById('entriesList');
-    const STORAGE_KEY = 'simple_office_journal';
+/* helpers */
+const load = k => { try { return JSON.parse(localStorage.getItem(k) || '[]') } catch { return [] } };
+const save = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+const nowISO = () => new Date().toISOString();
 
-    function loadEntries() {
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-      catch { return []; }
-    }
+/* refs */
+const logsList = document.getElementById('logsList');
+const tasksList = document.getElementById('tasksList');
+const chipBar = document.getElementById('chipBar');
+const logInput = document.getElementById('logInput');
+const taskInput = document.getElementById('taskInput');
+const addLogBtn = document.getElementById('addLogBtn');
+const addTaskBtn = document.getElementById('addTaskBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const clearLogsBtn = document.getElementById('clearLogsBtn');
+const clearTasksBtn = document.getElementById('clearTasksBtn');
 
-    function saveEntries(entries) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    }
+let activeFilter = null;         // currently selected tag filter (string) or null
+let activeDropdown = null;       // DOM node for floating tag dropdown
+let outsideHandler = null;
 
-    function formatDateTime(dateStr) {
-      const d = new Date(dateStr);
-      return {
-        date: d.toLocaleDateString(),
-        time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-    }
+/* pastel color mapping (deterministic by tag text) */
+function pastelFor(tag){
+  const palette = [
+    ['#FDE8E8','#FCA5A5'], ['#FEF3C7','#FCD34D'], ['#E6FFFA','#81E6D9'],
+    ['#EFF6FF','#93C5FD'], ['#F3E8FF','#C4B5FD'], ['#FFF7ED','#FDBA74'],
+    ['#F0F9FF','#BFDBFE'], ['#F7FEE7','#86EFAC']
+  ];
+  let h=0;
+  for(let i=0;i<tag.length;i++) h = (h*31 + tag.charCodeAt(i)) | 0;
+  const pair = palette[Math.abs(h) % palette.length];
+  return {bg: pair[0], border: pair[1]};
+}
 
-    function renderEntries() {
-      entriesList.innerHTML = '';
-      const entries = loadEntries();
-      entries.forEach((e, index) => {
-        const { date, time } = formatDateTime(e.time);
-        const li = document.createElement('li');
-        li.innerHTML = `
-          <div class="entry-text">${e.text}</div>
-          <div class="timestamp"><div>${date}</div><div>${time}</div></div>
-        `;
-        li.addEventListener('click', () => makeEditable(li, index, e));
-        entriesList.prepend(li);
-      });
-    }
+/* UTILS: animate entry in */
+function animateIn(el){
+  el.classList.add('enter');
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=> el.classList.add('show')); });
+  setTimeout(()=>el.classList.remove('enter'), 220);
+}
 
-    function makeEditable(li, index, entry) {
-      const input = document.createElement('textarea');
-      input.className = 'edit';
-      input.value = entry.text;
-      li.innerHTML = '';
-      li.appendChild(input);
-      input.focus();
+/* compute combined unique tags from saved tags store */
+function getAllTags(){
+  const t = load(TAGS_KEY) || [];
+  return t.slice(); // return copy
+}
 
-      input.addEventListener('blur', () => {
-        entry.text = input.value.trim() || entry.text;
-        const entries = loadEntries();
-        entries[index] = entry;
-        saveEntries(entries);
-        renderEntries();
-      });
-    }
-
-    function addEntry() {
-      const text = entryText.value.trim();
-      if (!text) return;
-      const now = new Date();
-      const entries = loadEntries();
-      entries.push({ text, time: now });
-      saveEntries(entries);
-      entryText.value = '';
-      renderEntries();
-    }
-
-    function downloadCSV() {
-      const entries = loadEntries();
-      if (entries.length === 0) return alert('No entries to download');
-      let csv = 'Date,Time,Entry\n';
-      entries.forEach(e => {
-        const d = new Date(e.time);
-        const date = d.toLocaleDateString();
-        const time = d.toLocaleTimeString();
-        const clean = e.text.replace(/\n/g, ' ').replace(/\"/g, '\"\"');
-        csv += `"${date}","${time}","${clean}"\n`;
-      });
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `office_journal_${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function clearEntries() {
-      if (confirm('Delete all entries?')) {
-        localStorage.removeItem(STORAGE_KEY);
-        renderEntries();
-      }
-    }
-
-    entryText.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        addEntry();
-      }
+/* render shared chip bar */
+function renderChipBar(){
+  chipBar.innerHTML = '';
+  const tags = getAllTags();
+  if(tags.length === 0){
+    const hint = document.createElement('div'); hint.style.color='#64748b'; hint.style.fontSize='13px';
+    hint.textContent = 'No tags yet — add tags using the tag icon on items';
+    chipBar.appendChild(hint);
+    return;
+  }
+  tags.forEach(tag => {
+    const c = pastelFor(tag);
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.style.background = c.bg;
+    chip.style.border = `1px solid ${c.border}`;
+    chip.textContent = tag;
+    if(activeFilter === tag) chip.classList.add('active');
+    chip.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      activeFilter = (activeFilter === tag) ? null : tag;
+      renderAll();
     });
+    chipBar.appendChild(chip);
+  });
+}
 
-    addBtn.addEventListener('click', addEntry);
-    downloadBtn.addEventListener('click', downloadCSV);
-    clearBtn.addEventListener('click', clearEntries);
+/* render lists (filtered by activeFilter only in UI; CSV includes all) */
+function renderAll(){
+  renderChipBar();
+  renderList(LOGS_KEY, logsList, false);
+  renderList(TASKS_KEY, tasksList, true);
+}
 
-    renderEntries();
-  </script>
+/* render a list element (log or task) */
+function renderList(key, container, isTask){
+  container.innerHTML = '';
+  const arr = load(key);
+  // show newest at top, but keep correct indices
+  for(let i = arr.length - 1; i >= 0; i--){
+    const item = arr[i];
+    // filter by tag if activeFilter set
+    if(activeFilter){
+      const tags = item.tags || [];
+      if(!tags.includes(activeFilter)) continue;
+    }
+    const li = buildItemElement(item, i, key, isTask);
+    container.appendChild(li);
+    // animate in
+    animateIn(li);
+  }
+}
+
+/* build item DOM */
+function buildItemElement(item, index, key, isTask){
+  const li = document.createElement('li'); li.className = 'item';
+  // left block
+  const left = document.createElement('div'); left.className = 'left';
+  const line = document.createElement('div'); line.className = 'line';
+  const text = document.createElement('div'); text.className = 'text'; text.textContent = item.text; text.title = item.text;
+  text.addEventListener('click', (e)=>{ e.stopPropagation(); makeEditable(li, index, key); });
+
+  line.appendChild(text);
+  left.appendChild(line);
+
+  // tags row
+  const tagsRow = document.createElement('div'); tagsRow.className = 'tags';
+  (item.tags || []).forEach((t, ti) => {
+    const tagEl = document.createElement('span'); tagEl.className = 'tag';
+    const c = pastelFor(t);
+    tagEl.style.background = c.bg; tagEl.style.border = `1px solid ${c.border}`;
+    const label = document.createElement('span'); label.style.maxWidth='160px'; label.style.display='inline-block';
+    label.style.overflow='hidden'; label.style.textOverflow='ellipsis'; label.style.whiteSpace='nowrap';
+    label.textContent = t;
+    const removeBtn = document.createElement('button'); removeBtn.textContent = '✖'; removeBtn.title='Remove tag';
+    removeBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeTag(key, index, ti); });
+    tagEl.appendChild(label); tagEl.appendChild(removeBtn);
+    tagsRow.appendChild(tagEl);
+  });
+  left.appendChild(tagsRow);
+
+  // hover icons (left side)
+  const iconsLeft = document.createElement('div'); iconsLeft.className = 'hover-icons';
+  const tagBtn = document.createElement('button'); tagBtn.className='icon-btn'; tagBtn.textContent='🏷️'; tagBtn.title='Add tag';
+  tagBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); openTagDropdown(li, index, key); });
+  iconsLeft.appendChild(tagBtn);
+
+  // timestamp
+  const ts = document.createElement('div'); ts.className = 'timestamp';
+  const dt = new Date(item.time);
+  ts.innerHTML = `${dt.toLocaleDateString()}<br><b>${dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>`;
+
+  // hover icons right (after timestamp), shown on hover
+  const iconsRight = document.createElement('div'); iconsRight.className = 'right-actions';
+  const rightHoverWrapper = document.createElement('div'); rightHoverWrapper.className = 'hover-icons';
+  if(isTask){
+    const doneBtn = document.createElement('button'); doneBtn.className='icon-btn'; doneBtn.textContent='✅'; doneBtn.title='Mark complete';
+    doneBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); completeTask(index); });
+    rightHoverWrapper.appendChild(doneBtn);
+  }
+  iconsRight.appendChild(rightHoverWrapper);
+
+  // assemble
+  li.appendChild(left);
+  li.appendChild(iconsLeft);
+  li.appendChild(ts);
+  li.appendChild(iconsRight);
+
+  // make it keyboard accessible: Enter on focused item edits
+  li.tabIndex = 0;
+  li.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); makeEditable(li,index,key); } });
+
+  return li;
+}
+
+/* inline edit */
+function makeEditable(li, index, key){
+  const arr = load(key);
+  if(!arr[index]) return;
+  const item = {...arr[index]}; // copy
+  const left = li.querySelector('.left');
+  left.innerHTML = '';
+  const ta = document.createElement('textarea'); ta.className = 'text-edit'; ta.value = item.text;
+  left.appendChild(ta);
+  ta.focus();
+  ta.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ta.blur(); }});
+  ta.addEventListener('blur', ()=>{
+    const v = ta.value.trim();
+    if(v){ item.text = v; arr[index] = item; save(key, arr); }
+    renderAll();
+  });
+}
+
+/* add items */
+function addItem(key, inputEl){
+  const v = inputEl.value.trim(); if(!v) return;
+  const arr = load(key);
+  arr.push({ text: v, time: nowISO(), tags: [] });
+  save(key, arr);
+  inputEl.value = '';
+  renderAll();
+}
+
+/* complete task -> move to logs */
+function completeTask(index){
+  const tasks = load(TASKS_KEY);
+  if(index < 0 || index >= tasks.length) return;
+  const item = tasks.splice(index, 1)[0];
+  const logs = load(LOGS_KEY);
+  logs.push(item);
+  save(TASKS_KEY, tasks); save(LOGS_KEY, logs);
+  renderAll();
+}
+
+/* remove tag from item */
+function removeTag(key, index, tagIndex){
+  const arr = load(key);
+  if(!arr[index]) return;
+  arr[index].tags = arr[index].tags || [];
+  arr[index].tags.splice(tagIndex,1);
+  save(key, arr);
+  renderAll();
+}
+
+/* floating tag dropdown attached to body to avoid scroll reflow */
+function openTagDropdown(li, index, key){
+  closeDropdown();
+  const allTags = getAllTags(); // remembered tags
+  const dd = document.createElement('div'); dd.className = 'tag-dropdown';
+  dd.addEventListener('click', e=>e.stopPropagation());
+
+  const existingWrap = document.createElement('div'); existingWrap.className = 'existing';
+  if(allTags.length === 0){
+    existingWrap.innerHTML = `<div style="color:#64748b;font-size:13px">No tags yet</div>`;
+  } else {
+    allTags.forEach(t => {
+      const s = document.createElement('div'); s.className='tag-suggest'; s.textContent = t;
+      s.addEventListener('click', (ev)=>{ ev.stopPropagation(); addTagToItem(key, index, t); closeDropdown(); });
+      existingWrap.appendChild(s);
+    });
+  }
+
+  const input = document.createElement('input'); input.placeholder = 'Type new tag and press Enter';
+  input.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); const v = input.value.trim(); if(v){ addTagToItem(key,index,v); closeDropdown(); } }
+  });
+
+  dd.appendChild(existingWrap); dd.appendChild(input);
+  document.body.appendChild(dd);
+  // position using bounding rect
+  const rect = li.getBoundingClientRect();
+  dd.style.left = Math.max(8, rect.left + window.scrollX) + 'px';
+  dd.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
+
+  input.focus();
+  activeDropdown = dd;
+  outsideHandler = (ev)=>{ if(!dd.contains(ev.target)) closeDropdown(); };
+  document.addEventListener('click', outsideHandler);
+}
+
+/* close dropdown */
+function closeDropdown(){
+  if(activeDropdown){ activeDropdown.remove(); activeDropdown = null; }
+  if(outsideHandler){ document.removeEventListener('click', outsideHandler); outsideHandler = null; }
+}
+
+/* add tag to item and remember globally */
+function addTagToItem(key, index, tag){
+  const arr = load(key);
+  if(!arr[index]) return;
+  arr[index].tags = arr[index].tags || [];
+  if(!arr[index].tags.includes(tag)) arr[index].tags.push(tag);
+  save(key, arr);
+  // remember tag
+  const global = load(TAGS_KEY);
+  if(!global.includes(tag)){ global.push(tag); save(TAGS_KEY, global); }
+  renderAll();
+}
+
+/* build global tag list */
+function getAllTags(){
+  const global = load(TAGS_KEY);
+  return global;
+}
+
+/* render chip bar uses remembered tags and same pastel colors */
+function renderChipBar(){
+  chipBar.innerHTML = '';
+  const tags = getAllTags();
+  if(tags.length === 0){
+    const hint = document.createElement('div'); hint.style.color='#64748b'; hint.style.fontSize='13px';
+    hint.textContent = 'No tags yet — add tags using the tag icon on items';
+    chipBar.appendChild(hint); return;
+  }
+  tags.forEach(t=>{
+    const c = pastelFor(t);
+    const chip = document.createElement('div'); chip.className = 'chip';
+    chip.style.background = c.bg; chip.style.border = `1px solid ${c.border}`;
+    chip.textContent = t;
+    if(activeFilter === t) chip.classList.add('active');
+    chip.addEventListener('click', (e)=>{ e.stopPropagation(); activeFilter = (activeFilter===t)? null : t; renderAll(); });
+    chipBar.appendChild(chip);
+  });
+}
+
+/* CSV download (includes all items regardless of active filter) */
+function downloadCSV(){
+  const logs = load(LOGS_KEY), tasks = load(TASKS_KEY);
+  const rows = [['Type','Text','Tags','Timestamp']];
+  logs.forEach(r => rows.push(['Log', r.text, (r.tags||[]).join('; '), r.time]));
+  tasks.forEach(r => rows.push(['Task', r.text, (r.tags||[]).join('; '), r.time]));
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'}); const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `office_journal_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* wire events */
+addLogBtn.addEventListener('click', ()=>addItem(LOGS_KEY, logInput));
+addTaskBtn.addEventListener('click', ()=>addItem(TASKS_KEY, taskInput));
+logInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); addItem(LOGS_KEY, logInput); }});
+taskInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); addItem(TASKS_KEY, taskInput); }});
+
+clearLogsBtn.addEventListener('click', ()=>{ if(confirm('Clear all logs?')){ localStorage.removeItem(LOGS_KEY); renderAll(); }});
+clearTasksBtn.addEventListener('click', ()=>{ if(confirm('Clear all tasks?')){ localStorage.removeItem(TASKS_KEY); renderAll(); }});
+downloadBtn.addEventListener('click', downloadCSV);
+
+/* close dropdown on escape */
+document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeDropdown(); });
+
+/* initial render */
+renderAll();
+</script>
 </body>
 </html>
