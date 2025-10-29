@@ -1,40 +1,42 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Office Journal & ToDos v14</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Office Journal & ToDos v15</title>
 <!--
-  Office Journal & ToDos v14
-  - HTML: structure and controls (Combine toggle next to header)
-  - CSS: compact pastel theme, hover-only icons, subtle animations
-  - JS: localStorage keys kept: oj_logs_v3, oj_tasks_v3, oj_tags_v3
-    Features: tags, inline floating dropdown, filter chips, combine view,
-              add/edit (preserve newlines), link detection (domain only),
-              CSV export (all items), delete/complete animations.
+  Office Journal & ToDos v15
+  - Storage keys preserved (oj_logs_v3, oj_tasks_v3, oj_tags_v3)
+  - Logs (soft blue), Tasks (soft red)
+  - Font restored to 14px for readability
+  - Timestamp hides on hover and icons (🏷️, ✅, 🗑️) appear in the same spot
+  - Combine view toggle, tag chips, pastel tags, inline floating dropdown, CSV export
+  - Link detection after Add/Edit (shortened domain)
 -->
 <style>
   :root{
-    --bg:#f8fafc; --card:#fff; --muted:#6b7280; --accent:#2563eb;
+    --bg:#f7fafc; --card:#ffffff; --muted:#6b7280; --accent:#2563eb;
+    --log-bg:#eef6ff; /* soft blue */
+    --task-bg:#fff1f0; /* soft red */
   }
-  /* Compact base */
   html,body{height:100%}
   body{
-    margin:14px auto; max-width:980px; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;
-    background:var(--bg); color:#0f172a; padding:10px;
+    margin:14px auto; max-width:980px; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    background:var(--bg); color:#0f172a; padding:12px; font-size:14px;
   }
-  h1{font-size:16px;margin:0}
-  .header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-  .title-left{display:flex;align-items:center;gap:12px}
+  h1{font-size:17px;margin:0}
+  .header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+  .title{display:flex;flex-direction:column}
   .controls{display:flex;gap:8px;align-items:center}
-  .btn{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 8px;font-size:12px;cursor:pointer}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 8px;font-size:13px;cursor:pointer}
   .btn.gray{background:#6b7280}
   .btn.warn{background:#ef4444}
-  .small{padding:6px 8px;font-size:12px}
+  .btn.orange{background:#f59e0b}
+  .small{padding:6px 8px;font-size:13px}
 
   /* chip bar */
-  .chip-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
-  .chip{padding:6px 8px;border-radius:999px;font-size:12px;cursor:pointer;border:1px solid rgba(0,0,0,0.04)}
+  .chip-bar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .chip{padding:6px 10px;border-radius:999px;font-size:13px;cursor:pointer;border:1px solid rgba(0,0,0,0.04)}
   .chip.active{box-shadow:0 6px 18px rgba(15,23,42,0.06);transform:translateY(-1px)}
 
   /* layout */
@@ -43,68 +45,75 @@
 
   .card{background:var(--card);border:1px solid #e6e9ef;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px}
   .card-header{display:flex;justify-content:space-between;align-items:center}
-  .input-row{display:flex;gap:6px}
-  textarea.input{flex:1;height:34px;padding:6px;border-radius:6px;border:1px solid #d1d5db;font-size:13px;resize:vertical}
-  .add-btn{background:var(--accent);color:#fff;border:0;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px}
+  .input-row{display:flex;gap:8px}
+  textarea.input{flex:1;height:34px;padding:6px;border-radius:6px;border:1px solid #d1d5db;font-size:14px;resize:vertical}
+  .add-btn{background:var(--accent);color:#fff;border:0;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px}
 
   /* list */
-  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto}
+  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow:auto}
   li.item{
-    display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:6px;border:1px solid #eef2f7;background:#fff;
-    font-size:13px;position:relative;transition:transform .18s ease,opacity .18s ease,height .18s ease,margin .18s ease;
+    display:flex;align-items:flex-start;gap:8px;padding:10px;border-radius:8px;border:1px solid #eef2f7;background:#fff;
+    font-size:14px;position:relative;transition:transform .20s ease,opacity .18s ease,height .18s ease,margin .18s ease;
   }
   li.item.enter{opacity:0;transform:translateY(-6px) scale(.995)}
   li.item.show{opacity:1;transform:none}
   li.item.leave{opacity:0;transform:translateY(6px) scale(.995);height:0;margin:0;padding:0;border:0}
 
-  .left{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
-  .line{display:flex;align-items:center;gap:8px}
-  .text{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;flex:1;line-height:1.25}
-  .text-edit{width:100%;min-height:56px;padding:6px;border-radius:6px;border:1px solid #e6eef8;font-size:13px}
+  /* background by type (applied in JS) */
+  .item.log-type{background:var(--log-bg)}
+  .item.task-type{background:var(--task-bg)}
+
+  .left{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+  .line{display:flex;align-items:center;gap:10px}
+  .text{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;flex:1;line-height:1.3;cursor:text}
+  .text-edit{width:100%;min-height:56px;padding:6px;border-radius:6px;border:1px solid #e6eef8;font-size:14px}
 
   /* link styling */
-  .text a{font-size:90%;color:#2563eb;text-decoration:none}
+  .text a{font-size:92%;color:#2563eb;text-decoration:none}
   .text a:hover{text-decoration:underline}
 
   /* tags compact */
   .tags{display:flex;gap:6px;flex-wrap:wrap}
-  .tag{display:inline-flex;align-items:center;gap:6px;padding:2px 6px;border-radius:999px;font-size:11px;color:#0f172a}
-  .tag button{background:transparent;border:0;cursor:pointer;font-size:11px;color:#64748b}
+  .tag{display:inline-flex;align-items:center;gap:6px;padding:2px 6px;border-radius:999px;font-size:12px;color:#0f172a}
+  .tag button{background:transparent;border:0;cursor:pointer;font-size:12px;color:#64748b}
   .tag button:hover{color:#111}
 
-  /* timestamp and right icons on single line (show on hover) */
-  .meta-row{display:flex;align-items:center;gap:8px;min-width:160px;justify-content:flex-end}
-  .timestamp{font-size:11px;color:var(--muted);text-align:right;line-height:1.05;white-space:nowrap}
+  /* meta area: timestamp and icons share the same spot */
+  .meta{display:flex;align-items:center;gap:8px;min-width:120px;justify-content:flex-end}
+  .timestamp{font-size:12px;color:var(--muted);text-align:right;line-height:1.05;white-space:nowrap}
   .icons{display:flex;align-items:center;gap:6px}
-  .icon-btn{background:transparent;border:0;cursor:pointer;font-size:14px;color:#475569;padding:4px}
-  li.item .icons{visibility:hidden} /* hide until hover */
-  li.item:hover .icons{visibility:visible} /* instant show on hover */
+  .icon-btn{background:transparent;border:0;cursor:pointer;font-size:15px;color:#475569;padding:4px}
+  .icon-btn:hover{color:#0f172a}
 
-  /* floating dropdown attached to body */
-  .tag-dropdown{
-    position:fixed;background:#fff;border:1px solid #e6e9ef;border-radius:8px;padding:8px;box-shadow:0 10px 30px rgba(15,23,42,0.08);z-index:999;width:220px
-  }
+  /* The timestamp and icons occupy same container; icons are hidden by default and appear instantly on hover */
+  .meta .icons{display:none}
+  li.item:hover .meta .icons{display:flex}
+  li.item:hover .meta .timestamp{display:none}
+
+  /* floating tag dropdown */
+  .tag-dropdown{position:fixed;background:#fff;border:1px solid #e6e9ef;border-radius:8px;padding:8px;box-shadow:0 10px 30px rgba(15,23,42,0.08);z-index:999;width:220px}
   .tag-dropdown .existing{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
   .tag-suggest{padding:6px 8px;border-radius:6px;background:#f3f4f6;font-size:13px;cursor:pointer}
   .tag-dropdown input{width:100%;padding:8px;border-radius:6px;border:1px solid #e5e7eb;font-size:13px}
+
   /* compact tweaks */
   .compact .card{padding:6px}
   .compact textarea.input{height:30px}
   .compact .tag{padding:2px 5px;font-size:11px}
-  .compact .text{font-size:12px}
-  .compact .timestamp{font-size:11px}
+  .compact .text{font-size:14px}
+  .compact .timestamp{font-size:12px}
 </style>
 </head>
 <body>
   <div class="header">
-    <div class="title-left">
-      <h1>Office Journal & ToDos v14</h1>
-      <div style="font-size:12px;color:#64748b">compact mode</div>
+    <div class="title">
+      <h1>Office Journal & ToDos v15</h1>
+      <div style="font-size:12px;color:#64748b">compact readable</div>
     </div>
 
     <div class="controls">
       <button id="combineToggle" class="btn gray small">Combine View: Off</button>
-      <button id="downloadBtn" class="btn secondary small">Download CSV</button>
+      <button id="downloadBtn" class="btn small">Download CSV</button>
     </div>
   </div>
 
@@ -138,9 +147,9 @@
 
 <script>
 /* ===== storage keys (unchanged) ===== */
-const LOGS_KEY = 'oj_logs_v3', TASKS_KEY = 'oj_tasks_v3', TAGS_KEY = 'oj_tags_v3';
+const LOGS_KEY='oj_logs_v3', TASKS_KEY='oj_tasks_v3', TAGS_KEY='oj_tags_v3';
 
-/* ===== small helpers ===== */
+/* ===== helpers ===== */
 const load = k => { try { return JSON.parse(localStorage.getItem(k) || '[]') } catch { return [] } };
 const save = (k,v) => localStorage.setItem(k, JSON.stringify(v));
 const nowISO = () => new Date().toISOString();
@@ -164,35 +173,28 @@ let activeDropdown = null;
 let outsideHandler = null;
 let combineView = false;
 
-/* pastel mapper */
+/* pastel mapping */
 function pastelFor(tag){
   const palette = [
     ['#FDE8E8','#FCA5A5'], ['#FEF3C7','#FCD34D'], ['#E6FFFA','#81E6D9'],
     ['#EFF6FF','#93C5FD'], ['#F3E8FF','#C4B5FD'], ['#FFF7ED','#FDBA74'],
     ['#F0F9FF','#BFDBFE'], ['#F7FEE7','#86EFAC']
   ];
-  let h = 0;
-  for(let i=0;i<tag.length;i++) h = (h*31 + tag.charCodeAt(i))|0;
-  const p = palette[Math.abs(h) % palette.length];
-  return {bg: p[0], border: p[1]};
+  let h=0; for(let i=0;i<tag.length;i++) h = (h*31 + tag.charCodeAt(i))|0;
+  const p = palette[Math.abs(h) % palette.length]; return {bg: p[0], border: p[1]};
 }
 
 /* render links -> domain only; supports multiple links; preserves newlines via <br> */
 function renderTextWithLinks(text){
   if(!text) return '';
   const urlRegex = /((https?:\/\/|www\.)[^\s,;]+)/gi;
-  const parts = [];
-  let last=0, m;
+  const parts = []; let last=0, m;
   while((m = urlRegex.exec(text)) !== null){
     const start = m.index, full = m[0];
     if(start > last) parts.push(escapeHtml(text.slice(last, start)).replace(/\n/g,'<br>'));
-    let href = full;
-    if(/^www\./i.test(full)) href = 'https://' + full;
-    try{
-      const u = new URL(href);
-      const host = u.hostname.replace(/^www\./,'');
-      parts.push(`<a href="${escapeAttr(href)}" target="_blank">${escapeHtml(host)}</a>`);
-    }catch(e){ parts.push(escapeHtml(full)); }
+    let href = full; if(/^www\./i.test(full)) href = 'https://' + full;
+    try { const u = new URL(href); const host = u.hostname.replace(/^www\./,''); parts.push(`<a href="${escapeAttr(href)}" target="_blank">${escapeHtml(host)}</a>`); }
+    catch(e){ parts.push(escapeHtml(full)); }
     last = start + full.length;
   }
   if(last < text.length) parts.push(escapeHtml(text.slice(last)).replace(/\n/g,'<br>'));
@@ -201,262 +203,164 @@ function renderTextWithLinks(text){
 function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
 function escapeAttr(s){ return String(s).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
-/* animate in */
-function animateIn(el){
-  el.classList.add('enter');
-  requestAnimationFrame(()=> requestAnimationFrame(()=> el.classList.add('show')));
-  setTimeout(()=> el.classList.remove('enter'), 220);
-}
+function animateIn(el){ el.classList.add('enter'); requestAnimationFrame(()=> requestAnimationFrame(()=> el.classList.add('show'))); setTimeout(()=> el.classList.remove('enter'), 220); }
 
-/* ===== tags & chips ===== */
+/* ===== tags & chip bar ===== */
 function getAllTags(){ return load(TAGS_KEY) || []; }
 function renderChipBar(){
-  chipBar.innerHTML = '';
-  const tags = getAllTags();
-  if(tags.length === 0){
-    const hint = document.createElement('div'); hint.style.color='#64748b'; hint.style.fontSize='13px';
-    hint.textContent = 'No tags yet — add via the tag icon on items';
-    chipBar.appendChild(hint); return;
-  }
+  chipBar.innerHTML = ''; const tags = getAllTags();
+  if(tags.length === 0){ const hint=document.createElement('div'); hint.style.color='#64748b'; hint.style.fontSize='13px'; hint.textContent='No tags yet — add via tag icon'; chipBar.appendChild(hint); return; }
   tags.forEach(t=>{
     const c = pastelFor(t);
     const chip = document.createElement('div'); chip.className='chip';
-    chip.style.background = c.bg; chip.style.border = `1px solid ${c.border}`;
-    chip.textContent = t;
+    chip.style.background = c.bg; chip.style.border = `1px solid ${c.border}`; chip.textContent = t;
     if(activeFilter === t) chip.classList.add('active');
     chip.addEventListener('click', (e)=>{ e.stopPropagation(); activeFilter = (activeFilter === t) ? null : t; renderAll(); });
     chipBar.appendChild(chip);
   });
 }
 
-/* ===== rendering lists (honor activeFilter for UI only) ===== */
+/* ===== render lists / combined view ===== */
 function renderAll(){
   renderChipBar();
-  if(combineView) renderCombined();
-  else { renderList(LOGS_KEY, logsList, false); renderList(TASKS_KEY, tasksList, true); }
-}
-
-function renderList(key, container, isTask){
-  container.innerHTML = '';
-  const arr = load(key);
-  // render newest first but keep index mapping: arr[idx] is stored index
-  for(let idx = arr.length -1; idx >= 0; idx--){
-    const item = arr[idx];
-    if(activeFilter && !((item.tags||[]).includes(activeFilter))) continue;
-    const li = buildItem(item, idx, key, isTask);
-    container.appendChild(li);
-    animateIn(li);
-  }
-}
-
-/* combined view: merge both arrays by timestamp descending */
-function renderCombined(){
-  const logs = load(LOGS_KEY).map((x,i)=> ({...x, _type:'Log', _idx:i}));
-  const tasks = load(TASKS_KEY).map((x,i)=> ({...x, _type:'Task', _idx:i}));
+  // remove any combined container if toggling off
+  const existing = document.getElementById('combinedContainer');
+  if(!combineView){ if(existing) existing.remove(); layout.style.display='grid'; renderList(LOGS_KEY, logsList, false); renderList(TASKS_KEY, tasksList, true); return; }
+  // combined view
+  layout.style.display='none';
+  if(existing) existing.remove();
+  const cont = document.createElement('div'); cont.id='combinedContainer'; cont.style.display='flex'; cont.style.flexDirection='column'; cont.style.gap='8px';
+  const logs = load(LOGS_KEY).map((x,i)=> ({...x,_type:'Log',_idx:i}));
+  const tasks = load(TASKS_KEY).map((x,i)=> ({...x,_type:'Task',_idx:i}));
   const all = logs.concat(tasks).sort((a,b)=> new Date(b.time) - new Date(a.time));
-  // container: replace layout with single column
-  const container = document.createElement('div'); container.style.display='flex'; container.style.flexDirection='column'; container.style.gap='8px';
   all.forEach(item=>{
     if(activeFilter && !((item.tags||[]).includes(activeFilter))) return;
     const key = item._type === 'Log' ? LOGS_KEY : TASKS_KEY;
     const li = buildItem(item, item._idx, key, item._type === 'Task');
-    container.appendChild(li); animateIn(li);
+    cont.appendChild(li); animateIn(li);
   });
-  // replace main content with single column view
-  const parent = layout.parentElement;
-  // show container in place of main temporarily
-  const existing = document.getElementById('combinedContainer');
-  if(existing) existing.remove();
-  const wrapper = document.createElement('div'); wrapper.id = 'combinedContainer';
-  wrapper.appendChild(container);
-  // place wrapper after chipBar
-  const mainParent = layout;
-  mainParent.style.display = 'none';
-  const after = mainParent.nextSibling;
-  if(after && after.id === 'combinedContainer') after.remove();
-  mainParent.parentElement.insertBefore(wrapper, mainParent.nextSibling);
+  layout.parentElement.insertBefore(cont, layout.nextSibling);
 }
 
-/* restore split view (remove combined container) */
-function restoreSplitView(){
-  const existing = document.getElementById('combinedContainer');
-  if(existing) existing.remove();
-  layout.style.display = ''; // show main
+function renderList(key, container, isTask){
+  container.innerHTML = ''; const arr = load(key);
+  for(let idx = arr.length -1; idx >=0; idx--){
+    const item = arr[idx];
+    if(activeFilter && !((item.tags||[]).includes(activeFilter))) continue;
+    const li = buildItem(item, idx, key, isTask);
+    container.appendChild(li); animateIn(li);
+  }
 }
 
-/* build one item DOM element */
+/* build item element */
 function buildItem(item, index, key, isTask){
-  const li = document.createElement('li'); li.className = 'item';
-  const left = document.createElement('div'); left.className = 'left';
-  const line = document.createElement('div'); line.className = 'line';
-  const text = document.createElement('div'); text.className = 'text';
-  text.innerHTML = renderTextWithLinks(item.text || '');
-  text.title = item.text || '';
-  text.addEventListener('click', (e)=>{ e.stopPropagation(); makeEditable(li,index,key); });
+  const li = document.createElement('li'); li.className='item';
+  // type backgrounds
+  if(key === LOGS_KEY) li.classList.add('log-type'); else if(key === TASKS_KEY) li.classList.add('task-type');
 
+  const left = document.createElement('div'); left.className='left';
+  const line = document.createElement('div'); line.className='line';
+  const text = document.createElement('div'); text.className='text'; text.innerHTML = renderTextWithLinks(item.text || ''); text.title = item.text || '';
+  text.addEventListener('click', (e)=>{ e.stopPropagation(); makeEditable(li,index,key); });
   line.appendChild(text); left.appendChild(line);
 
-  // tags row (compact)
-  const tagsRow = document.createElement('div'); tagsRow.className = 'tags';
-  (item.tags || []).forEach((t, ti)=>{
-    const tagEl = document.createElement('span'); tagEl.className = 'tag';
-    const c = pastelFor(t);
-    tagEl.style.background = c.bg; tagEl.style.border = `1px solid ${c.border}`;
-    const lbl = document.createElement('span'); lbl.style.maxWidth='140px'; lbl.style.display='inline-block';
-    lbl.style.overflow='hidden'; lbl.style.textOverflow='ellipsis'; lbl.style.whiteSpace='nowrap';
-    lbl.textContent = t;
-    const btn = document.createElement('button'); btn.textContent = '✖'; btn.title='Remove tag';
-    btn.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeTag(key, index, ti); });
-    tagEl.appendChild(lbl); tagEl.appendChild(btn);
-    tagsRow.appendChild(tagEl);
-  });
+  // tags row
+  const tagsRow = document.createElement('div'); tagsRow.className='tags';
+  (item.tags||[]).forEach((t,ti)=>{ const tagEl=document.createElement('span'); tagEl.className='tag'; const c=pastelFor(t); tagEl.style.background=c.bg; tagEl.style.border=`1px solid ${c.border}`; const lbl=document.createElement('span'); lbl.style.maxWidth='140px'; lbl.style.display='inline-block'; lbl.style.overflow='hidden'; lbl.style.textOverflow='ellipsis'; lbl.style.whiteSpace='nowrap'; lbl.textContent=t; const btn=document.createElement('button'); btn.textContent='✖'; btn.title='Remove tag'; btn.addEventListener('click', ev=>{ ev.stopPropagation(); removeTag(key,index,ti); }); tagEl.appendChild(lbl); tagEl.appendChild(btn); tagsRow.appendChild(tagEl); });
   left.appendChild(tagsRow);
 
-  // left hover icons
-  const leftIcons = document.createElement('div'); leftIcons.className = 'icons hover-icons';
+  // left hover icon (tag)
+  const leftIcons = document.createElement('div'); leftIcons.className='icons hover-icons';
   const tagBtn = document.createElement('button'); tagBtn.className='icon-btn'; tagBtn.textContent='🏷️'; tagBtn.title='Add tag';
-  tagBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); openTagDropdown(li, index, key); });
+  tagBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); openTagDropdown(li,index,key); });
   leftIcons.appendChild(tagBtn);
 
-  // meta + right icons on same line
+  // meta area: timestamp and icons share same spot
+  const meta = document.createElement('div'); meta.className='meta';
   const ts = document.createElement('div'); ts.className='timestamp';
-  const d = new Date(item.time || nowISO());
-  ts.innerHTML = `${d.toLocaleDateString()}<br><b>${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>`;
+  const d = new Date(item.time || nowISO()); ts.innerHTML = `${d.toLocaleDateString()}<br><b>${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>`;
+  meta.appendChild(ts);
 
-  const right = document.createElement('div'); right.className='icons hover-icons';
-  // delete always present (far right)
+  const rightIcons = document.createElement('div'); rightIcons.className='icons';
+  // delete (far-right, visible on hover replacing timestamp)
   const del = document.createElement('button'); del.className='icon-btn'; del.textContent='🗑️'; del.title='Delete';
-  del.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeItemWithAnimation(key, index); });
-  right.appendChild(del);
-  if(isTask){
-    const done = document.createElement('button'); done.className='icon-btn'; done.textContent='✅'; done.title='Mark complete';
-    done.addEventListener('click', (ev)=>{ ev.stopPropagation(); completeTask(index); });
-    right.appendChild(done);
-  }
+  del.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeItemWithAnimation(key,index); });
+  rightIcons.appendChild(del);
+  if(isTask){ const done = document.createElement('button'); done.className='icon-btn'; done.textContent='✅'; done.title='Mark complete'; done.addEventListener('click', (ev)=>{ ev.stopPropagation(); completeTask(index); }); rightIcons.appendChild(done); }
+  meta.appendChild(rightIcons);
 
-  li.appendChild(left);
-  li.appendChild(leftIcons);
-  li.appendChild(ts);
-  li.appendChild(right);
+  // assemble: left, leftIcons, meta (timestamp or icons)
+  li.appendChild(left); li.appendChild(leftIcons); li.appendChild(meta);
 
   // keyboard accessibility
-  li.tabIndex = 0;
-  li.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); makeEditable(li, index, key); } });
-
+  li.tabIndex = 0; li.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); makeEditable(li,index,key); } });
   return li;
 }
 
-/* inline edit preserving newlines; on blur save raw text */
-function makeEditable(li, index, key){
-  const arr = load(key);
-  if(!arr[index]) return;
-  const item = {...arr[index]};
-  const left = li.querySelector('.left');
-  left.innerHTML = '';
-  const ta = document.createElement('textarea'); ta.className = 'text-edit'; ta.value = item.text || '';
-  left.appendChild(ta);
-  ta.focus();
-  ta.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); ta.blur(); }});
-  ta.addEventListener('blur', ()=>{
-    const v = ta.value;
-    if(typeof v === 'string'){ item.text = v; arr[index] = item; save(key, arr); }
-    renderAll();
-  });
+/* inline edit (preserve newlines) */
+function makeEditable(li,index,key){
+  const arr = load(key); if(!arr[index]) return;
+  const item = {...arr[index]}; const left = li.querySelector('.left'); left.innerHTML = '';
+  const ta = document.createElement('textarea'); ta.className='text-edit'; ta.value = item.text || '';
+  left.appendChild(ta); ta.focus();
+  ta.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ta.blur(); }});
+  ta.addEventListener('blur', ()=>{ const v = ta.value; if(typeof v === 'string'){ item.text = v; arr[index] = item; save(key,arr); } renderAll(); });
 }
 
-/* add item (stores plain text) */
-function addItem(key, input){
-  const v = input.value;
-  if(!v || !v.trim()) return;
-  const arr = load(key); arr.push({ text: v, time: nowISO(), tags: [] }); save(key, arr);
-  input.value = ''; renderAll();
-}
+/* add item */
+function addItem(key, inputEl){ const v=inputEl.value; if(!v || !v.trim()) return; const arr=load(key); arr.push({text:v,time:nowISO(),tags:[]}); save(key,arr); inputEl.value=''; renderAll(); }
 
-/* complete task */
-function completeTask(index){
-  const tasks = load(TASKS_KEY);
-  if(index < 0 || index >= tasks.length) return;
-  const item = tasks.splice(index,1)[0];
-  save(TASKS_KEY, tasks);
-  const logs = load(LOGS_KEY); logs.push(item); save(LOGS_KEY, logs);
-  renderAll();
-}
+/* complete task -> move to logs */
+function completeTask(index){ const tasks=load(TASKS_KEY); if(index<0||index>=tasks.length) return; const item=tasks.splice(index,1)[0]; save(TASKS_KEY,tasks); const logs=load(LOGS_KEY); logs.push(item); save(LOGS_KEY,logs); renderAll(); }
 
 /* remove tag */
-function removeTag(key, index, tagIndex){
-  const arr = load(key);
-  if(!arr[index]) return;
-  arr[index].tags = arr[index].tags || [];
-  arr[index].tags.splice(tagIndex,1); save(key, arr); renderAll();
-}
+function removeTag(key,index,tagIndex){ const arr=load(key); if(!arr[index]) return; arr[index].tags=arr[index].tags||[]; arr[index].tags.splice(tagIndex,1); save(key,arr); renderAll(); }
 
-/* remove item with fade-out */
-function removeItemWithAnimation(key, index){
-  const arr = load(key);
-  if(!arr[index]) return;
-  // try find matching element in rendered list to animate
-  const container = (key === TASKS_KEY) ? tasksList : logsList;
+/* remove with fade-out */
+function removeItemWithAnimation(key,index){
+  const arr = load(key); if(!arr[index]) return;
+  const container = (key===TASKS_KEY)?tasksList:logsList;
   const nodes = Array.from(container.children);
   const target = arr[index];
-  const el = nodes.find(li=>{
+  const el = nodes.find(li => {
     const txt = li.querySelector('.text')?.textContent || '';
     const ts = li.querySelector('.timestamp')?.innerText || '';
     return txt === target.text && ts.includes(new Date(target.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
   });
-  if(el){
-    el.classList.add('leave');
-    setTimeout(()=> {
-      const cur = load(key); cur.splice(index,1); save(key,cur); renderAll();
-    }, 220);
-  } else {
-    const cur = load(key); cur.splice(index,1); save(key,cur); renderAll();
-  }
+  if(el){ el.classList.add('leave'); setTimeout(()=>{ const cur=load(key); cur.splice(index,1); save(key,cur); renderAll(); },220); }
+  else { const cur=load(key); cur.splice(index,1); save(key,cur); renderAll(); }
 }
 
 /* tag dropdown floating */
-function openTagDropdown(li, index, key){
+function openTagDropdown(li,index,key){
   closeDropdown();
   const remembered = getAllTags();
-  const dd = document.createElement('div'); dd.className = 'tag-dropdown';
-  dd.addEventListener('click', e=>e.stopPropagation());
-  const existing = document.createElement('div'); existing.className = 'existing';
-  if(remembered.length === 0) existing.innerHTML = `<div style="color:#64748b;font-size:13px">No tags yet</div>`;
-  else {
-    remembered.forEach(t => {
-      const s = document.createElement('div'); s.className = 'tag-suggest'; s.textContent = t;
-      s.addEventListener('click', (ev)=>{ ev.stopPropagation(); addTagToItem(key, index, t); closeDropdown(); });
-      existing.appendChild(s);
-    });
-  }
-  const inp = document.createElement('input'); inp.placeholder = 'Type tag & Enter';
+  const dd = document.createElement('div'); dd.className='tag-dropdown'; dd.addEventListener('click', e=>e.stopPropagation());
+  const existing = document.createElement('div'); existing.className='existing';
+  if(remembered.length===0) existing.innerHTML=`<div style="color:#64748b;font-size:13px">No tags yet</div>`;
+  else { remembered.forEach(t=>{ const s=document.createElement('div'); s.className='tag-suggest'; s.textContent=t; s.addEventListener('click', ev=>{ ev.stopPropagation(); addTagToItem(key,index,t); closeDropdown(); }); existing.appendChild(s); }); }
+  const inp = document.createElement('input'); inp.placeholder='Type tag & Enter';
   inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); const v=inp.value.trim(); if(v){ addTagToItem(key,index,v); closeDropdown(); } }});
-  dd.appendChild(existing); dd.appendChild(inp);
-  document.body.appendChild(dd);
-  // position below clicked li
-  const rect = li.getBoundingClientRect();
-  dd.style.left = Math.max(8, rect.left + window.scrollX) + 'px';
-  dd.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
-  inp.focus();
-  activeDropdown = dd;
-  outsideHandler = (ev)=>{ if(!dd.contains(ev.target)) closeDropdown(); };
-  document.addEventListener('click', outsideHandler);
+  dd.appendChild(existing); dd.appendChild(inp); document.body.appendChild(dd);
+  const rect = li.getBoundingClientRect(); dd.style.left = Math.max(8, rect.left + window.scrollX) + 'px'; dd.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+  inp.focus(); activeDropdown = dd; outsideHandler = (ev)=>{ if(!dd.contains(ev.target)) closeDropdown(); }; document.addEventListener('click', outsideHandler);
 }
-function closeDropdown(){ if(activeDropdown){ activeDropdown.remove(); activeDropdown=null;} if(outsideHandler){ document.removeEventListener('click', outsideHandler); outsideHandler=null;} }
-function addTagToItem(key, index, tag){ const arr = load(key); if(!arr[index]) return; arr[index].tags = arr[index].tags||[]; if(!arr[index].tags.includes(tag)) arr[index].tags.push(tag); save(key,arr); const g=load(TAGS_KEY); if(!g.includes(tag)){ g.push(tag); save(TAGS_KEY,g); } renderAll(); }
+function closeDropdown(){ if(activeDropdown){ activeDropdown.remove(); activeDropdown=null; } if(outsideHandler){ document.removeEventListener('click', outsideHandler); outsideHandler=null; } }
+function addTagToItem(key,index,tag){ const arr=load(key); if(!arr[index]) return; arr[index].tags=arr[index].tags||[]; if(!arr[index].tags.includes(tag)) arr[index].tags.push(tag); save(key,arr); const g=load(TAGS_KEY); if(!g.includes(tag)){ g.push(tag); save(TAGS_KEY,g);} renderAll(); }
 function getAllTags(){ return load(TAGS_KEY) || []; }
 
 /* CSV download (all items) */
 function downloadCSV(){
   const logs = load(LOGS_KEY), tasks = load(TASKS_KEY);
-  const rows = [['Type','Text','Tags','Timestamp']];
-  logs.forEach(r => rows.push(['Log', r.text, (r.tags||[]).join('; '), r.time]));
-  tasks.forEach(r => rows.push(['Task', r.text, (r.tags||[]).join('; '), r.time]));
+  const rows=[['Type','Text','Tags','Timestamp']];
+  logs.forEach(r=>rows.push(['Log', r.text, (r.tags||[]).join('; '), r.time]));
+  tasks.forEach(r=>rows.push(['Task', r.text, (r.tags||[]).join('; '), r.time]));
   const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], {type:'text/csv'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `office_journal_v14_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  const blob = new Blob([csv], {type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`office_journal_v15_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
 }
 
-/* wire events */
+/* events wiring */
 addLogBtn.addEventListener('click', ()=>addItem(LOGS_KEY, logInput));
 addTaskBtn.addEventListener('click', ()=>addItem(TASKS_KEY, taskInput));
 logInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); addItem(LOGS_KEY, logInput); }});
@@ -464,18 +368,8 @@ taskInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){
 downloadBtn.addEventListener('click', downloadCSV);
 clearLogsBtn.addEventListener('click', ()=>{ if(confirm('Clear all logs?')){ localStorage.removeItem(LOGS_KEY); renderAll(); }});
 clearTasksBtn.addEventListener('click', ()=>{ if(confirm('Clear all tasks?')){ localStorage.removeItem(TASKS_KEY); renderAll(); }});
-
-/* combine toggle */
-combineToggle.addEventListener('click', ()=>{
-  combineView = !combineView;
-  combineToggle.textContent = `Combine View: ${combineView ? 'On' : 'Off'}`;
-  // remove combined container if toggling off
-  if(!combineView) restoreSplitView();
-  renderAll();
-});
-
-/* close dropdown on Esc */
-document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeDropdown(); });
+combineToggle.addEventListener('click', ()=>{ combineView = !combineView; combineToggle.textContent = `Combine View: ${combineView ? 'On' : 'Off'}`; if(!combineView){ const ex=document.getElementById('combinedContainer'); if(ex) ex.remove(); layout.style.display='grid'; } renderAll(); });
+document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeDropdown(); });
 
 /* initial render */
 renderAll();
