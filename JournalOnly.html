@@ -3,227 +3,224 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Office Journal & ToDos (Updated)</title>
+<title>Office Journal & ToDos v14</title>
+<!--
+  Office Journal & ToDos v14
+  - HTML: structure and controls (Combine toggle next to header)
+  - CSS: compact pastel theme, hover-only icons, subtle animations
+  - JS: localStorage keys kept: oj_logs_v3, oj_tasks_v3, oj_tags_v3
+    Features: tags, inline floating dropdown, filter chips, combine view,
+              add/edit (preserve newlines), link detection (domain only),
+              CSV export (all items), delete/complete animations.
+-->
 <style>
   :root{
-    --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --accent:#2563eb;
-    --chip-shadow: 0 6px 18px rgba(15,23,42,0.06);
+    --bg:#f8fafc; --card:#fff; --muted:#6b7280; --accent:#2563eb;
   }
+  /* Compact base */
+  html,body{height:100%}
   body{
-    font-family: Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
-    background:var(--bg); color:#0f172a; margin:20px auto; max-width:1000px; padding:14px;
+    margin:14px auto; max-width:980px; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    background:var(--bg); color:#0f172a; padding:10px;
   }
+  h1{font-size:16px;margin:0}
+  .header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+  .title-left{display:flex;align-items:center;gap:12px}
+  .controls{display:flex;gap:8px;align-items:center}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 8px;font-size:12px;cursor:pointer}
+  .btn.gray{background:#6b7280}
+  .btn.warn{background:#ef4444}
+  .small{padding:6px 8px;font-size:12px}
 
-  header{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-  .top-row{display:flex;justify-content:space-between;align-items:center}
-  h1{font-size:18px;margin:0}
-  .header-actions{display:flex;gap:8px}
-  .btn{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer}
-  .btn.warn{background:#ef4444} .btn.orange{background:#f59e0b} .btn.secondary{background:#10b981}
+  /* chip bar */
+  .chip-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .chip{padding:6px 8px;border-radius:999px;font-size:12px;cursor:pointer;border:1px solid rgba(0,0,0,0.04)}
+  .chip.active{box-shadow:0 6px 18px rgba(15,23,42,0.06);transform:translateY(-1px)}
 
-  /* shared tag chips */
-  .chip-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;font-size:13px;cursor:pointer;border:1px solid rgba(15,23,42,0.06)}
-  .chip.active{box-shadow:var(--chip-shadow);transform:translateY(-2px);}
+  /* layout */
+  .main{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:820px){ .main{grid-template-columns:1fr} }
 
-  .main{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
-  @media(max-width:800px){.main{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid #e6e9ef;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px}
+  .card-header{display:flex;justify-content:space-between;align-items:center}
+  .input-row{display:flex;gap:6px}
+  textarea.input{flex:1;height:34px;padding:6px;border-radius:6px;border:1px solid #d1d5db;font-size:13px;resize:vertical}
+  .add-btn{background:var(--accent);color:#fff;border:0;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px}
 
-  .section{background:var(--card);border:1px solid #e6e9ef;border-radius:8px;padding:8px;display:flex;flex-direction:column}
-  .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-  .section-title{font-weight:600;font-size:14px}
-  .input-row{display:flex;gap:8px;margin-bottom:6px}
-  textarea.input{flex:1;height:44px;padding:6px 8px;border-radius:6px;border:1px solid #d1d5db;font-size:13px;resize:vertical}
-  .small-btn{padding:8px 10px;border-radius:6px;border:0;background:var(--accent);color:#fff;cursor:pointer}
-
-  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow:auto}
+  /* list */
+  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto}
   li.item{
-    display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1px solid #eef2f7;background:#fff;font-size:13px;
-    position:relative; overflow:hidden;
-    transform-origin: left center;
-    transition:transform .20s ease,opacity .18s ease,height .18s ease,margin .18s ease;
+    display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:6px;border:1px solid #eef2f7;background:#fff;
+    font-size:13px;position:relative;transition:transform .18s ease,opacity .18s ease,height .18s ease,margin .18s ease;
   }
   li.item.enter{opacity:0;transform:translateY(-6px) scale(.995)}
   li.item.show{opacity:1;transform:none}
   li.item.leave{opacity:0;transform:translateY(6px) scale(.995);height:0;margin:0;padding:0;border:0}
 
-  .left{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
-  .line{display:flex;align-items:center;gap:10px}
-  .text{white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;cursor:text;flex:1;line-height:1.3}
-  .text-edit{width:100%;min-height:48px;padding:6px;border-radius:6px;border:1px solid #e6eef8;font-size:13px}
+  .left{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .line{display:flex;align-items:center;gap:8px}
+  .text{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;flex:1;line-height:1.25}
+  .text-edit{width:100%;min-height:56px;padding:6px;border-radius:6px;border:1px solid #e6eef8;font-size:13px}
 
-  /* link styling inside text */
-  .text a{font-size:90%;color:#2563eb;text-decoration:none;opacity:0.95}
-  .text a:hover{color:#0f4bd8;text-decoration:underline}
+  /* link styling */
+  .text a{font-size:90%;color:#2563eb;text-decoration:none}
+  .text a:hover{text-decoration:underline}
 
+  /* tags compact */
   .tags{display:flex;gap:6px;flex-wrap:wrap}
-  .tag{
-    display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;color:#0f172a;
-    border:1px solid rgba(0,0,0,0.04);
-  }
-  .tag button{background:transparent;border:0;cursor:pointer;font-size:11px;color:#64748b;padding-left:6px}
+  .tag{display:inline-flex;align-items:center;gap:6px;padding:2px 6px;border-radius:999px;font-size:11px;color:#0f172a}
+  .tag button{background:transparent;border:0;cursor:pointer;font-size:11px;color:#64748b}
   .tag button:hover{color:#111}
 
-  .timestamp{font-size:11px;color:var(--muted);text-align:right;min-width:86px;line-height:1.1}
-  .right-actions{display:flex;align-items:center;gap:6px;min-width:40px;justify-content:flex-end}
+  /* timestamp and right icons on single line (show on hover) */
+  .meta-row{display:flex;align-items:center;gap:8px;min-width:160px;justify-content:flex-end}
+  .timestamp{font-size:11px;color:var(--muted);text-align:right;line-height:1.05;white-space:nowrap}
+  .icons{display:flex;align-items:center;gap:6px}
+  .icon-btn{background:transparent;border:0;cursor:pointer;font-size:14px;color:#475569;padding:4px}
+  li.item .icons{visibility:hidden} /* hide until hover */
+  li.item:hover .icons{visibility:visible} /* instant show on hover */
 
-  /* icons appear only on hover */
-  .hover-icons{opacity:0;transition:opacity .15s ease}
-  li.item:hover .hover-icons{opacity:1}
-
-  .icon-btn{background:transparent;border:0;cursor:pointer;padding:6px;font-size:15px;color:#475569}
-  .icon-btn:hover{color:#0f172a}
-
-  /* floating dropdown */
-  .tag-dropdown{position:fixed;background:#fff;border:1px solid #e6e9ef;border-radius:8px;padding:8px;box-shadow:0 10px 30px rgba(15,23,42,0.08);z-index:999;width:220px}
+  /* floating dropdown attached to body */
+  .tag-dropdown{
+    position:fixed;background:#fff;border:1px solid #e6e9ef;border-radius:8px;padding:8px;box-shadow:0 10px 30px rgba(15,23,42,0.08);z-index:999;width:220px
+  }
   .tag-dropdown .existing{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
   .tag-suggest{padding:6px 8px;border-radius:6px;background:#f3f4f6;font-size:13px;cursor:pointer}
   .tag-dropdown input{width:100%;padding:8px;border-radius:6px;border:1px solid #e5e7eb;font-size:13px}
+  /* compact tweaks */
+  .compact .card{padding:6px}
+  .compact textarea.input{height:30px}
+  .compact .tag{padding:2px 5px;font-size:11px}
+  .compact .text{font-size:12px}
+  .compact .timestamp{font-size:11px}
 </style>
 </head>
 <body>
-  <header>
-    <div class="top-row">
-      <h1>Office Journal & ToDos</h1>
-      <div class="header-actions">
-        <button id="downloadBtn" class="btn secondary">Download CSV</button>
-      </div>
+  <div class="header">
+    <div class="title-left">
+      <h1>Office Journal & ToDos v14</h1>
+      <div style="font-size:12px;color:#64748b">compact mode</div>
     </div>
 
-    <div>
-      <div id="chipBar" class="chip-bar" aria-label="Tag filter bar"></div>
+    <div class="controls">
+      <button id="combineToggle" class="btn gray small">Combine View: Off</button>
+      <button id="downloadBtn" class="btn secondary small">Download CSV</button>
     </div>
-  </header>
+  </div>
 
-  <div class="main">
-    <div class="section">
-      <div class="section-header">
+  <div id="chipBar" class="chip-bar" aria-label="Tag filter bar"></div>
+
+  <div id="layout" class="main compact">
+    <div class="card" id="logsCard">
+      <div class="card-header">
         <div class="section-title">Activity Log</div>
-        <button id="clearLogsBtn" class="btn warn">Clear</button>
+        <button id="clearLogsBtn" class="btn warn small">Clear</button>
       </div>
-
       <div class="input-row">
-        <textarea id="logInput" class="input" placeholder="Quick log — press Enter to add"></textarea>
-        <button id="addLogBtn" class="small-btn">Add</button>
+        <textarea id="logInput" class="input" placeholder="Quick log — Enter to add"></textarea>
+        <button id="addLogBtn" class="add-btn">Add</button>
       </div>
-
       <ul id="logsList" class="list" aria-live="polite"></ul>
     </div>
 
-    <div class="section">
-      <div class="section-header">
+    <div class="card" id="tasksCard">
+      <div class="card-header">
         <div class="section-title">To-Do List</div>
-        <button id="clearTasksBtn" class="btn orange">Clear</button>
+        <button id="clearTasksBtn" class="btn orange small">Clear</button>
       </div>
-
       <div class="input-row">
-        <textarea id="taskInput" class="input" placeholder="Add task — press Enter to add"></textarea>
-        <button id="addTaskBtn" class="small-btn">Add</button>
+        <textarea id="taskInput" class="input" placeholder="Add task — Enter to add"></textarea>
+        <button id="addTaskBtn" class="add-btn">Add</button>
       </div>
-
       <ul id="tasksList" class="list" aria-live="polite"></ul>
     </div>
   </div>
 
 <script>
-/* KEEP THE SAME STORAGE KEYS (do not change) */
-const LOGS_KEY='oj_logs_v3', TASKS_KEY='oj_tasks_v3', TAGS_KEY='oj_tags_v3';
+/* ===== storage keys (unchanged) ===== */
+const LOGS_KEY = 'oj_logs_v3', TASKS_KEY = 'oj_tasks_v3', TAGS_KEY = 'oj_tags_v3';
 
-/* helpers */
+/* ===== small helpers ===== */
 const load = k => { try { return JSON.parse(localStorage.getItem(k) || '[]') } catch { return [] } };
 const save = (k,v) => localStorage.setItem(k, JSON.stringify(v));
 const nowISO = () => new Date().toISOString();
 
-/* DOM refs */
+/* ===== DOM refs ===== */
 const logsList = document.getElementById('logsList');
 const tasksList = document.getElementById('tasksList');
 const chipBar = document.getElementById('chipBar');
-const logInput = document.getElementById('logInput');
-const taskInput = document.getElementById('taskInput');
 const addLogBtn = document.getElementById('addLogBtn');
 const addTaskBtn = document.getElementById('addTaskBtn');
+const logInput = document.getElementById('logInput');
+const taskInput = document.getElementById('taskInput');
 const downloadBtn = document.getElementById('downloadBtn');
 const clearLogsBtn = document.getElementById('clearLogsBtn');
 const clearTasksBtn = document.getElementById('clearTasksBtn');
+const combineToggle = document.getElementById('combineToggle');
+const layout = document.getElementById('layout');
 
 let activeFilter = null;
 let activeDropdown = null;
 let outsideHandler = null;
+let combineView = false;
 
-/* pastel mapping (deterministic) */
+/* pastel mapper */
 function pastelFor(tag){
   const palette = [
     ['#FDE8E8','#FCA5A5'], ['#FEF3C7','#FCD34D'], ['#E6FFFA','#81E6D9'],
     ['#EFF6FF','#93C5FD'], ['#F3E8FF','#C4B5FD'], ['#FFF7ED','#FDBA74'],
     ['#F0F9FF','#BFDBFE'], ['#F7FEE7','#86EFAC']
   ];
-  let h=0;
-  for(let i=0;i<tag.length;i++) h = (h*31 + tag.charCodeAt(i)) | 0;
-  const pair = palette[Math.abs(h) % palette.length];
-  return {bg: pair[0], border: pair[1]};
+  let h = 0;
+  for(let i=0;i<tag.length;i++) h = (h*31 + tag.charCodeAt(i))|0;
+  const p = palette[Math.abs(h) % palette.length];
+  return {bg: p[0], border: p[1]};
 }
 
-/* Link detection & rendering (multiple links). Returns HTML string.
-   Shows domain only and replaces newlines with <br>.
-*/
+/* render links -> domain only; supports multiple links; preserves newlines via <br> */
 function renderTextWithLinks(text){
   if(!text) return '';
   const urlRegex = /((https?:\/\/|www\.)[^\s,;]+)/gi;
   const parts = [];
-  let lastIndex = 0;
-  let match;
-  while((match = urlRegex.exec(text)) !== null){
-    const start = match.index;
-    const full = match[0];
-    if(start > lastIndex){
-      parts.push(escapeHtml(text.slice(lastIndex, start)).replace(/\n/g, '<br>'));
-    }
+  let last=0, m;
+  while((m = urlRegex.exec(text)) !== null){
+    const start = m.index, full = m[0];
+    if(start > last) parts.push(escapeHtml(text.slice(last, start)).replace(/\n/g,'<br>'));
     let href = full;
     if(/^www\./i.test(full)) href = 'https://' + full;
     try{
-      const urlObj = new URL(href);
-      const hostname = urlObj.hostname.replace(/^www\./, '');
-      parts.push(`<a href="${escapeAttr(href)}" target="_blank">${escapeHtml(hostname)}</a>`);
-    } catch(err){
-      parts.push(escapeHtml(full));
-    }
-    lastIndex = start + full.length;
+      const u = new URL(href);
+      const host = u.hostname.replace(/^www\./,'');
+      parts.push(`<a href="${escapeAttr(href)}" target="_blank">${escapeHtml(host)}</a>`);
+    }catch(e){ parts.push(escapeHtml(full)); }
+    last = start + full.length;
   }
-  if(lastIndex < text.length) parts.push(escapeHtml(text.slice(lastIndex)).replace(/\n/g, '<br>'));
+  if(last < text.length) parts.push(escapeHtml(text.slice(last)).replace(/\n/g,'<br>'));
   return parts.join('');
 }
-
-/* escape helpers */
-function escapeHtml(s){
-  return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-}
-function escapeAttr(s){
-  return String(s).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;');
-}
+function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+function escapeAttr(s){ return String(s).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
 /* animate in */
 function animateIn(el){
   el.classList.add('enter');
   requestAnimationFrame(()=> requestAnimationFrame(()=> el.classList.add('show')));
-  setTimeout(()=> el.classList.remove('enter'), 250);
+  setTimeout(()=> el.classList.remove('enter'), 220);
 }
 
-/* get all remembered tags */
+/* ===== tags & chips ===== */
 function getAllTags(){ return load(TAGS_KEY) || []; }
-
-/* render chip bar */
 function renderChipBar(){
   chipBar.innerHTML = '';
   const tags = getAllTags();
   if(tags.length === 0){
     const hint = document.createElement('div'); hint.style.color='#64748b'; hint.style.fontSize='13px';
-    hint.textContent = 'No tags yet — add tags using the tag icon on items';
-    chipBar.appendChild(hint);
-    return;
+    hint.textContent = 'No tags yet — add via the tag icon on items';
+    chipBar.appendChild(hint); return;
   }
   tags.forEach(t=>{
     const c = pastelFor(t);
-    const chip = document.createElement('div'); chip.className = 'chip';
+    const chip = document.createElement('div'); chip.className='chip';
     chip.style.background = c.bg; chip.style.border = `1px solid ${c.border}`;
     chip.textContent = t;
     if(activeFilter === t) chip.classList.add('active');
@@ -232,137 +229,156 @@ function renderChipBar(){
   });
 }
 
-/* render lists (UI is filtered by chip; CSV always exports all) */
+/* ===== rendering lists (honor activeFilter for UI only) ===== */
 function renderAll(){
   renderChipBar();
-  renderList(LOGS_KEY, logsList, false);
-  renderList(TASKS_KEY, tasksList, true);
+  if(combineView) renderCombined();
+  else { renderList(LOGS_KEY, logsList, false); renderList(TASKS_KEY, tasksList, true); }
 }
 
-/* render a list into container; preserve correct indices by iterating forward and mapping reversed index */
 function renderList(key, container, isTask){
   container.innerHTML = '';
   const arr = load(key);
-  for(let i = arr.length - 1; i >= 0; i--){
-    const item = arr[i];
-    if(activeFilter && !(item.tags || []).includes(activeFilter)) continue;
-    const li = buildItemElement(item, i, key, isTask);
+  // render newest first but keep index mapping: arr[idx] is stored index
+  for(let idx = arr.length -1; idx >= 0; idx--){
+    const item = arr[idx];
+    if(activeFilter && !((item.tags||[]).includes(activeFilter))) continue;
+    const li = buildItem(item, idx, key, isTask);
     container.appendChild(li);
     animateIn(li);
   }
 }
 
-/* build item element */
-function buildItemElement(item, index, key, isTask){
-  const li = document.createElement('li'); li.className='item';
-  const left = document.createElement('div'); left.className='left';
-  const line = document.createElement('div'); line.className='line';
-  const txt = document.createElement('div'); txt.className='text';
-  txt.innerHTML = renderTextWithLinks(item.text || '');
-  txt.title = item.text || '';
-  txt.addEventListener('click', (e)=>{ e.stopPropagation(); makeEditable(li, index, key); });
+/* combined view: merge both arrays by timestamp descending */
+function renderCombined(){
+  const logs = load(LOGS_KEY).map((x,i)=> ({...x, _type:'Log', _idx:i}));
+  const tasks = load(TASKS_KEY).map((x,i)=> ({...x, _type:'Task', _idx:i}));
+  const all = logs.concat(tasks).sort((a,b)=> new Date(b.time) - new Date(a.time));
+  // container: replace layout with single column
+  const container = document.createElement('div'); container.style.display='flex'; container.style.flexDirection='column'; container.style.gap='8px';
+  all.forEach(item=>{
+    if(activeFilter && !((item.tags||[]).includes(activeFilter))) return;
+    const key = item._type === 'Log' ? LOGS_KEY : TASKS_KEY;
+    const li = buildItem(item, item._idx, key, item._type === 'Task');
+    container.appendChild(li); animateIn(li);
+  });
+  // replace main content with single column view
+  const parent = layout.parentElement;
+  // show container in place of main temporarily
+  const existing = document.getElementById('combinedContainer');
+  if(existing) existing.remove();
+  const wrapper = document.createElement('div'); wrapper.id = 'combinedContainer';
+  wrapper.appendChild(container);
+  // place wrapper after chipBar
+  const mainParent = layout;
+  mainParent.style.display = 'none';
+  const after = mainParent.nextSibling;
+  if(after && after.id === 'combinedContainer') after.remove();
+  mainParent.parentElement.insertBefore(wrapper, mainParent.nextSibling);
+}
 
-  line.appendChild(txt);
-  left.appendChild(line);
+/* restore split view (remove combined container) */
+function restoreSplitView(){
+  const existing = document.getElementById('combinedContainer');
+  if(existing) existing.remove();
+  layout.style.display = ''; // show main
+}
 
-  // tags row
-  const tagsRow = document.createElement('div'); tagsRow.className='tags';
-  (item.tags || []).forEach((t, ti) => {
-    const tagEl = document.createElement('span'); tagEl.className='tag';
+/* build one item DOM element */
+function buildItem(item, index, key, isTask){
+  const li = document.createElement('li'); li.className = 'item';
+  const left = document.createElement('div'); left.className = 'left';
+  const line = document.createElement('div'); line.className = 'line';
+  const text = document.createElement('div'); text.className = 'text';
+  text.innerHTML = renderTextWithLinks(item.text || '');
+  text.title = item.text || '';
+  text.addEventListener('click', (e)=>{ e.stopPropagation(); makeEditable(li,index,key); });
+
+  line.appendChild(text); left.appendChild(line);
+
+  // tags row (compact)
+  const tagsRow = document.createElement('div'); tagsRow.className = 'tags';
+  (item.tags || []).forEach((t, ti)=>{
+    const tagEl = document.createElement('span'); tagEl.className = 'tag';
     const c = pastelFor(t);
     tagEl.style.background = c.bg; tagEl.style.border = `1px solid ${c.border}`;
-    const lbl = document.createElement('span'); lbl.style.maxWidth='160px'; lbl.style.display='inline-block';
+    const lbl = document.createElement('span'); lbl.style.maxWidth='140px'; lbl.style.display='inline-block';
     lbl.style.overflow='hidden'; lbl.style.textOverflow='ellipsis'; lbl.style.whiteSpace='nowrap';
     lbl.textContent = t;
-    const btn = document.createElement('button'); btn.textContent = '✖'; btn.title = 'Remove tag';
+    const btn = document.createElement('button'); btn.textContent = '✖'; btn.title='Remove tag';
     btn.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeTag(key, index, ti); });
     tagEl.appendChild(lbl); tagEl.appendChild(btn);
     tagsRow.appendChild(tagEl);
   });
   left.appendChild(tagsRow);
 
-  // left hover icons (tag)
-  const leftIcons = document.createElement('div'); leftIcons.className='hover-icons';
+  // left hover icons
+  const leftIcons = document.createElement('div'); leftIcons.className = 'icons hover-icons';
   const tagBtn = document.createElement('button'); tagBtn.className='icon-btn'; tagBtn.textContent='🏷️'; tagBtn.title='Add tag';
   tagBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); openTagDropdown(li, index, key); });
   leftIcons.appendChild(tagBtn);
 
-  // timestamp
+  // meta + right icons on same line
   const ts = document.createElement('div'); ts.className='timestamp';
   const d = new Date(item.time || nowISO());
   ts.innerHTML = `${d.toLocaleDateString()}<br><b>${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>`;
 
-  // right icons (complete/delete) shown on hover, far right after timestamp
-  const right = document.createElement('div'); right.className='right-actions';
-  const rightWrapper = document.createElement('div'); rightWrapper.className='hover-icons';
-
-  // delete icon for both logs & tasks (user requested delete on logs; keep consistent)
-  const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑️'; delBtn.title='Delete';
-  delBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeItemWithAnimation(key, index); });
-  rightWrapper.appendChild(delBtn);
-
+  const right = document.createElement('div'); right.className='icons hover-icons';
+  // delete always present (far right)
+  const del = document.createElement('button'); del.className='icon-btn'; del.textContent='🗑️'; del.title='Delete';
+  del.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeItemWithAnimation(key, index); });
+  right.appendChild(del);
   if(isTask){
-    const doneBtn = document.createElement('button'); doneBtn.className='icon-btn'; doneBtn.textContent='✅'; doneBtn.title='Mark complete';
-    doneBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); completeTask(index); });
-    rightWrapper.appendChild(doneBtn);
+    const done = document.createElement('button'); done.className='icon-btn'; done.textContent='✅'; done.title='Mark complete';
+    done.addEventListener('click', (ev)=>{ ev.stopPropagation(); completeTask(index); });
+    right.appendChild(done);
   }
 
-  right.appendChild(rightWrapper);
-
-  // assemble
   li.appendChild(left);
   li.appendChild(leftIcons);
   li.appendChild(ts);
   li.appendChild(right);
 
-  // make keyboard accessible: Enter edits
+  // keyboard accessibility
   li.tabIndex = 0;
   li.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); makeEditable(li, index, key); } });
 
   return li;
 }
 
-/* inline edit preserving newlines — on blur save plain text (not HTML) */
+/* inline edit preserving newlines; on blur save raw text */
 function makeEditable(li, index, key){
   const arr = load(key);
   if(!arr[index]) return;
   const item = {...arr[index]};
   const left = li.querySelector('.left');
   left.innerHTML = '';
-  const ta = document.createElement('textarea'); ta.className='text-edit'; ta.value = item.text || '';
+  const ta = document.createElement('textarea'); ta.className = 'text-edit'; ta.value = item.text || '';
   left.appendChild(ta);
   ta.focus();
-  // save on Enter (no shift) or blur
-  ta.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ta.blur(); }});
+  ta.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); ta.blur(); }});
   ta.addEventListener('blur', ()=>{
     const v = ta.value;
-    if(typeof v === 'string'){
-      item.text = v; arr[index] = item; save(key, arr);
-    }
+    if(typeof v === 'string'){ item.text = v; arr[index] = item; save(key, arr); }
     renderAll();
   });
 }
 
-/* add item */
-function addItem(key, inputEl){
-  const v = inputEl.value;
+/* add item (stores plain text) */
+function addItem(key, input){
+  const v = input.value;
   if(!v || !v.trim()) return;
-  const arr = load(key);
-  arr.push({ text: v, time: nowISO(), tags: [] });
-  save(key, arr);
-  inputEl.value = '';
-  renderAll();
+  const arr = load(key); arr.push({ text: v, time: nowISO(), tags: [] }); save(key, arr);
+  input.value = ''; renderAll();
 }
 
-/* complete task: animate removal from tasks and add to logs */
+/* complete task */
 function completeTask(index){
   const tasks = load(TASKS_KEY);
   if(index < 0 || index >= tasks.length) return;
   const item = tasks.splice(index,1)[0];
   save(TASKS_KEY, tasks);
-  const logs = load(LOGS_KEY);
-  logs.push(item);
-  save(LOGS_KEY, logs);
+  const logs = load(LOGS_KEY); logs.push(item); save(LOGS_KEY, logs);
   renderAll();
 }
 
@@ -371,121 +387,94 @@ function removeTag(key, index, tagIndex){
   const arr = load(key);
   if(!arr[index]) return;
   arr[index].tags = arr[index].tags || [];
-  arr[index].tags.splice(tagIndex,1);
-  save(key, arr);
-  renderAll();
+  arr[index].tags.splice(tagIndex,1); save(key, arr); renderAll();
 }
 
-/* remove item with fade-out animation, then update storage */
+/* remove item with fade-out */
 function removeItemWithAnimation(key, index){
-  const container = (key === TASKS_KEY) ? tasksList : logsList;
-  // find the rendered li for that index (we rendered reversed, so find matching by index data)
-  // simpler: perform removal then re-render but animate the removed element if found by matching text+time
-  // find element matching text+time to animate
   const arr = load(key);
   if(!arr[index]) return;
-  const target = arr[index];
-  // find DOM li that matches (compare text & time)
+  // try find matching element in rendered list to animate
+  const container = (key === TASKS_KEY) ? tasksList : logsList;
   const nodes = Array.from(container.children);
+  const target = arr[index];
   const el = nodes.find(li=>{
-    const ts = li.querySelector('.timestamp');
-    if(!ts) return false;
-    const ttext = li.querySelector('.text')?.textContent || '';
-    const ttime = ts.querySelector ? ts.innerText : ts.innerHTML;
-    // match by text and time contains hour/min - best-effort
-    return ttext === target.text && ts.innerText.includes(new Date(target.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+    const txt = li.querySelector('.text')?.textContent || '';
+    const ts = li.querySelector('.timestamp')?.innerText || '';
+    return txt === target.text && ts.includes(new Date(target.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
   });
   if(el){
     el.classList.add('leave');
     setTimeout(()=> {
-      // remove from storage and re-render
-      const cur = load(key);
-      cur.splice(index,1);
-      save(key,cur);
-      renderAll();
+      const cur = load(key); cur.splice(index,1); save(key,cur); renderAll();
     }, 220);
   } else {
-    // fallback: remove immediately
-    const cur = load(key);
-    cur.splice(index,1);
-    save(key,cur);
-    renderAll();
+    const cur = load(key); cur.splice(index,1); save(key,cur); renderAll();
   }
 }
 
-/* tag dropdown (floating, attached to body to avoid scroll reflow) */
+/* tag dropdown floating */
 function openTagDropdown(li, index, key){
   closeDropdown();
-  const all = getAllTags();
+  const remembered = getAllTags();
   const dd = document.createElement('div'); dd.className = 'tag-dropdown';
   dd.addEventListener('click', e=>e.stopPropagation());
   const existing = document.createElement('div'); existing.className = 'existing';
-  if(all.length === 0){
-    existing.innerHTML = `<div style="color:#64748b;font-size:13px">No tags yet</div>`;
-  } else {
-    all.forEach(t => {
-      const s = document.createElement('div'); s.className='tag-suggest'; s.textContent = t;
+  if(remembered.length === 0) existing.innerHTML = `<div style="color:#64748b;font-size:13px">No tags yet</div>`;
+  else {
+    remembered.forEach(t => {
+      const s = document.createElement('div'); s.className = 'tag-suggest'; s.textContent = t;
       s.addEventListener('click', (ev)=>{ ev.stopPropagation(); addTagToItem(key, index, t); closeDropdown(); });
       existing.appendChild(s);
     });
   }
-  const input = document.createElement('input'); input.placeholder = 'Type new tag and press Enter';
-  input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); const v = input.value.trim(); if(v){ addTagToItem(key,index,v); closeDropdown(); } }});
-  dd.appendChild(existing); dd.appendChild(input);
+  const inp = document.createElement('input'); inp.placeholder = 'Type tag & Enter';
+  inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); const v=inp.value.trim(); if(v){ addTagToItem(key,index,v); closeDropdown(); } }});
+  dd.appendChild(existing); dd.appendChild(inp);
   document.body.appendChild(dd);
-  // position below item
+  // position below clicked li
   const rect = li.getBoundingClientRect();
   dd.style.left = Math.max(8, rect.left + window.scrollX) + 'px';
   dd.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
-  input.focus();
+  inp.focus();
   activeDropdown = dd;
   outsideHandler = (ev)=>{ if(!dd.contains(ev.target)) closeDropdown(); };
   document.addEventListener('click', outsideHandler);
 }
-function closeDropdown(){
-  if(activeDropdown){ activeDropdown.remove(); activeDropdown = null; }
-  if(outsideHandler){ document.removeEventListener('click', outsideHandler); outsideHandler = null; }
-}
-
-/* add tag to item and remember globally */
-function addTagToItem(key, index, tag){
-  const arr = load(key);
-  if(!arr[index]) return;
-  arr[index].tags = arr[index].tags || [];
-  if(!arr[index].tags.includes(tag)) arr[index].tags.push(tag);
-  save(key, arr);
-  const global = load(TAGS_KEY);
-  if(!global.includes(tag)){ global.push(tag); save(TAGS_KEY, global); }
-  renderAll();
-}
-
-/* get remembered tags */
+function closeDropdown(){ if(activeDropdown){ activeDropdown.remove(); activeDropdown=null;} if(outsideHandler){ document.removeEventListener('click', outsideHandler); outsideHandler=null;} }
+function addTagToItem(key, index, tag){ const arr = load(key); if(!arr[index]) return; arr[index].tags = arr[index].tags||[]; if(!arr[index].tags.includes(tag)) arr[index].tags.push(tag); save(key,arr); const g=load(TAGS_KEY); if(!g.includes(tag)){ g.push(tag); save(TAGS_KEY,g); } renderAll(); }
 function getAllTags(){ return load(TAGS_KEY) || []; }
 
-/* CSV download (includes all items, ignoring filter) */
+/* CSV download (all items) */
 function downloadCSV(){
   const logs = load(LOGS_KEY), tasks = load(TASKS_KEY);
   const rows = [['Type','Text','Tags','Timestamp']];
   logs.forEach(r => rows.push(['Log', r.text, (r.tags||[]).join('; '), r.time]));
   tasks.forEach(r => rows.push(['Task', r.text, (r.tags||[]).join('; '), r.time]));
   const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `office_journal_${new Date().toISOString().slice(0,10)}.csv`; a.click();
-  URL.revokeObjectURL(a.href);
+  const blob = new Blob([csv], {type:'text/csv'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `office_journal_v14_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
 }
 
-/* event wiring */
+/* wire events */
 addLogBtn.addEventListener('click', ()=>addItem(LOGS_KEY, logInput));
 addTaskBtn.addEventListener('click', ()=>addItem(TASKS_KEY, taskInput));
 logInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); addItem(LOGS_KEY, logInput); }});
 taskInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); addItem(TASKS_KEY, taskInput); }});
-
+downloadBtn.addEventListener('click', downloadCSV);
 clearLogsBtn.addEventListener('click', ()=>{ if(confirm('Clear all logs?')){ localStorage.removeItem(LOGS_KEY); renderAll(); }});
 clearTasksBtn.addEventListener('click', ()=>{ if(confirm('Clear all tasks?')){ localStorage.removeItem(TASKS_KEY); renderAll(); }});
-downloadBtn.addEventListener('click', downloadCSV);
 
-/* close dropdown on escape */
+/* combine toggle */
+combineToggle.addEventListener('click', ()=>{
+  combineView = !combineView;
+  combineToggle.textContent = `Combine View: ${combineView ? 'On' : 'Off'}`;
+  // remove combined container if toggling off
+  if(!combineView) restoreSplitView();
+  renderAll();
+});
+
+/* close dropdown on Esc */
 document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeDropdown(); });
 
 /* initial render */
