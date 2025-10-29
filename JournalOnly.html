@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Office Journal & ToDos v16</title>
+  <title>Office Journal & ToDos v16.1</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -87,17 +87,15 @@
       flex-direction: row;
       align-items: flex-start;
       justify-content: space-between;
-      background: #eef6ff;
       border-radius: 6px;
       padding: 8px;
       margin-bottom: 6px;
       transition: all 0.2s ease;
       position: relative;
+      background: #eef6ff; /* log */
     }
 
     .entry.task { background: #ffecec; }
-
-    .entry:hover { background: #f7f7f7; }
 
     .entry-content {
       flex: 1;
@@ -175,11 +173,19 @@
     }
 
     .tag-selector div:hover { background: #eee; }
+
+    .combined .column {
+      display: none;
+    }
+
+    .combined #combinedCol {
+      display: flex;
+    }
   </style>
 </head>
 <body>
   <header>
-    <h2>Office Journal & ToDos v16</h2>
+    <h2>Office Journal & ToDos v16.1</h2>
     <div>
       <button id="downloadBtn">Download CSV</button>
       <button id="clearLogsBtn">Clear Logs</button>
@@ -195,11 +201,17 @@
       <button id="addJournal">Add Entry</button>
       <div id="journalList"></div>
     </div>
+
     <div class="column" id="taskCol">
       <h3>ToDos</h3>
       <textarea id="taskInput" placeholder="Add a new task..."></textarea>
       <button id="addTask">Add Task</button>
       <div id="taskList"></div>
+    </div>
+
+    <div class="column" id="combinedCol" style="display:none;">
+      <h3>Combined View</h3>
+      <div id="combinedList"></div>
     </div>
   </div>
 
@@ -212,12 +224,16 @@
     const addTask = document.getElementById('addTask');
     const journalList = document.getElementById('journalList');
     const taskList = document.getElementById('taskList');
+    const combinedList = document.getElementById('combinedList');
     const tagSelector = document.getElementById('tagSelector');
     const downloadBtn = document.getElementById('downloadBtn');
     const clearLogsBtn = document.getElementById('clearLogsBtn');
     const clearTasksBtn = document.getElementById('clearTasksBtn');
     const combineToggle = document.getElementById('combineToggle');
     const container = document.getElementById('container');
+    const journalCol = document.getElementById('journalCol');
+    const taskCol = document.getElementById('taskCol');
+    const combinedCol = document.getElementById('combinedCol');
 
     let logs = JSON.parse(localStorage.getItem('officeJournalData') || '[]');
     let tasks = JSON.parse(localStorage.getItem('officeTasksData') || '[]');
@@ -250,7 +266,7 @@
 
     function completeTask(index) {
       const completed = tasks.splice(index, 1)[0];
-      logs.unshift({...completed, time: new Date().toLocaleString()});
+      logs.unshift({ ...completed, time: new Date().toLocaleString() });
       saveData();
       render();
     }
@@ -329,49 +345,45 @@
       render();
     }
 
+    function createEntry(type, item, index) {
+      const div = document.createElement('div');
+      div.className = 'entry' + (type === 'task' ? ' task' : '');
+      div.innerHTML = `
+        <div class="left">
+          <div class="entry-content">${item.text}</div>
+          <div>${item.tags.map(t => `<span class="tag">${t}<button onclick="removeTag('${type}',${index},'${t}')">×</button></span>`).join('')}</div>
+        </div>
+        <div class="meta">
+          <div class="timestamp">${item.time}</div>
+          <div class="actions">
+            <button onclick="showTagSelector(event,'${type}',${index})">🏷️</button>
+            ${type === 'task' ? `<button onclick="completeTask(${index})">✅</button>` : ''}
+            <button onclick="editEntry('${type}',${index})">✏️</button>
+            <button onclick="deleteEntry('${type}',${index})">🗑️</button>
+          </div>
+        </div>`;
+      return div;
+    }
+
     function render() {
       journalList.innerHTML = '';
       taskList.innerHTML = '';
+      combinedList.innerHTML = '';
       tagSelector.style.display = 'none';
 
-      function createEntry(type, item, index) {
-        const div = document.createElement('div');
-        div.className = 'entry' + (type === 'task' ? ' task' : '');
-        div.innerHTML = `
-          <div class="left">
-            <div class="entry-content">${item.text}</div>
-            <div>${item.tags.map(t => `<span class="tag">${t}<button onclick="removeTag('${type}',${index},'${t}')">×</button></span>`).join('')}</div>
-          </div>
-          <div class="meta">
-            <div class="timestamp">${item.time}</div>
-            <div class="actions">
-              <button onclick="showTagSelector(event,'${type}',${index})">🏷️</button>
-              ${type === 'task' ? `<button onclick="completeTask(${index})">✅</button>` : ''}
-              <button onclick="editEntry('${type}',${index})">✏️</button>
-              <button onclick="deleteEntry('${type}',${index})">🗑️</button>
-            </div>
-          </div>`;
-        return div;
-      }
+      logs.forEach((x, i) => journalList.appendChild(createEntry('log', x, i)));
+      tasks.forEach((x, i) => taskList.appendChild(createEntry('task', x, i)));
 
-      if (combinedView) {
-        const all = [...logs.map(x => ({...x, type:'log'})), ...tasks.map(x => ({...x, type:'task'}))];
-        all.sort((a,b) => new Date(b.time) - new Date(a.time));
-        container.innerHTML = `<div class="column"><h3>Combined View</h3><div id="combinedList"></div></div>`;
-        const combinedList = document.getElementById('combinedList');
-        all.forEach((x, i) => combinedList.appendChild(createEntry(x.type, x, i)));
-      } else {
-        container.innerHTML = '';
-        container.appendChild(document.getElementById('journalCol'));
-        container.appendChild(document.getElementById('taskCol'));
-        logs.forEach((x, i) => journalList.appendChild(createEntry('log', x, i)));
-        tasks.forEach((x, i) => taskList.appendChild(createEntry('task', x, i)));
-      }
+      const all = [...logs.map(x => ({...x, type:'log'})), ...tasks.map(x => ({...x, type:'task'}))];
+      all.sort((a,b) => new Date(b.time) - new Date(a.time));
+      all.forEach((x,i) => combinedList.appendChild(createEntry(x.type, x, i)));
+
+      container.classList.toggle('combined', combinedView);
     }
 
     document.addEventListener('click', () => tagSelector.style.display = 'none');
-    addJournal.onclick = () => addEntry('log', journalInput.value), journalInput.value = '';
-    addTask.onclick = () => addEntry('task', taskInput.value), taskInput.value = '';
+    addJournal.onclick = () => { addEntry('log', journalInput.value); journalInput.value = ''; };
+    addTask.onclick = () => { addEntry('task', taskInput.value); taskInput.value = ''; };
 
     journalInput.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -401,7 +413,7 @@
       const blob = new Blob([csv], {type:'text/csv'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'office_journal_v16.csv';
+      a.download = 'office_journal_v16.1.csv';
       a.click();
     };
 
