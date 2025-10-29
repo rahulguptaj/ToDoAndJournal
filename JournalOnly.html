@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Office Journal & ToDos (Links + Tags + Filter)</title>
+<title>Office Journal & ToDos (Updated)</title>
 <style>
   :root{
     --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --accent:#2563eb;
@@ -11,7 +11,7 @@
   }
   body{
     font-family: Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
-    background:var(--bg); color:#0f172a; margin:24px auto; max-width:1000px; padding:14px;
+    background:var(--bg); color:#0f172a; margin:20px auto; max-width:1000px; padding:14px;
   }
 
   header{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
@@ -36,21 +36,21 @@
   textarea.input{flex:1;height:44px;padding:6px 8px;border-radius:6px;border:1px solid #d1d5db;font-size:13px;resize:vertical}
   .small-btn{padding:8px 10px;border-radius:6px;border:0;background:var(--accent);color:#fff;cursor:pointer}
 
-  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:56vh;overflow:auto}
+  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow:auto}
   li.item{
-    display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;border:1px solid #eef2f7;background:#fff;font-size:13px;
+    display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1px solid #eef2f7;background:#fff;font-size:13px;
     position:relative; overflow:hidden;
     transform-origin: left center;
-    transition:transform .18s ease,opacity .18s ease;
+    transition:transform .20s ease,opacity .18s ease,height .18s ease,margin .18s ease;
   }
   li.item.enter{opacity:0;transform:translateY(-6px) scale(.995)}
   li.item.show{opacity:1;transform:none}
-  li.item.leave{opacity:0;transform:translateY(6px) scale(.995);transition:transform .18s ease,opacity .12s ease}
+  li.item.leave{opacity:0;transform:translateY(6px) scale(.995);height:0;margin:0;padding:0;border:0}
 
-  .left{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .left{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
   .line{display:flex;align-items:center;gap:10px}
-  .text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;flex:1;line-height:1.2}
-  .text-edit{width:100%;padding:6px;border-radius:6px;border:1px solid #e6eef8;font-size:13px}
+  .text{white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;cursor:text;flex:1;line-height:1.3}
+  .text-edit{width:100%;min-height:48px;padding:6px;border-radius:6px;border:1px solid #e6eef8;font-size:13px}
 
   /* link styling inside text */
   .text a{font-size:90%;color:#2563eb;text-decoration:none;opacity:0.95}
@@ -61,7 +61,7 @@
     display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;color:#0f172a;
     border:1px solid rgba(0,0,0,0.04);
   }
-  .tag button{background:transparent;border:0;cursor:pointer;font-size:11px;color:#64748b}
+  .tag button{background:transparent;border:0;cursor:pointer;font-size:11px;color:#64748b;padding-left:6px}
   .tag button:hover{color:#111}
 
   .timestamp{font-size:11px;color:var(--muted);text-align:right;min-width:86px;line-height:1.1}
@@ -126,7 +126,7 @@
   </div>
 
 <script>
-/* storage keys */
+/* KEEP THE SAME STORAGE KEYS (do not change) */
 const LOGS_KEY='oj_logs_v3', TASKS_KEY='oj_tasks_v3', TAGS_KEY='oj_tags_v3';
 
 /* helpers */
@@ -150,7 +150,7 @@ let activeFilter = null;
 let activeDropdown = null;
 let outsideHandler = null;
 
-/* pastel mapping */
+/* pastel mapping (deterministic) */
 function pastelFor(tag){
   const palette = [
     ['#FDE8E8','#FCA5A5'], ['#FEF3C7','#FCD34D'], ['#E6FFFA','#81E6D9'],
@@ -163,14 +163,12 @@ function pastelFor(tag){
   return {bg: pair[0], border: pair[1]};
 }
 
-/* link detection and render: converts URLs to <a> showing domain only
-   Regex supports http(s) and www. Multiple links handled.
-   We return sanitized HTML string (text nodes + anchors).
+/* Link detection & rendering (multiple links). Returns HTML string.
+   Shows domain only and replaces newlines with <br>.
 */
 function renderTextWithLinks(text){
   if(!text) return '';
   const urlRegex = /((https?:\/\/|www\.)[^\s,;]+)/gi;
-  // We'll build HTML by splitting on regex matches
   const parts = [];
   let lastIndex = 0;
   let match;
@@ -178,27 +176,24 @@ function renderTextWithLinks(text){
     const start = match.index;
     const full = match[0];
     if(start > lastIndex){
-      parts.push(escapeHtml(text.slice(lastIndex, start)));
+      parts.push(escapeHtml(text.slice(lastIndex, start)).replace(/\n/g, '<br>'));
     }
-    // ensure href has protocol
     let href = full;
     if(/^www\./i.test(full)) href = 'https://' + full;
-    // extract domain for display
     try{
       const urlObj = new URL(href);
       const hostname = urlObj.hostname.replace(/^www\./, '');
       parts.push(`<a href="${escapeAttr(href)}" target="_blank">${escapeHtml(hostname)}</a>`);
     } catch(err){
-      // fallback: show full text
       parts.push(escapeHtml(full));
     }
     lastIndex = start + full.length;
   }
-  if(lastIndex < text.length) parts.push(escapeHtml(text.slice(lastIndex)));
+  if(lastIndex < text.length) parts.push(escapeHtml(text.slice(lastIndex)).replace(/\n/g, '<br>'));
   return parts.join('');
 }
 
-/* escape helpers to avoid injecting HTML from stored text */
+/* escape helpers */
 function escapeHtml(s){
   return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 }
@@ -210,7 +205,7 @@ function escapeAttr(s){
 function animateIn(el){
   el.classList.add('enter');
   requestAnimationFrame(()=> requestAnimationFrame(()=> el.classList.add('show')));
-  setTimeout(()=> el.classList.remove('enter'), 220);
+  setTimeout(()=> el.classList.remove('enter'), 250);
 }
 
 /* get all remembered tags */
@@ -222,7 +217,7 @@ function renderChipBar(){
   const tags = getAllTags();
   if(tags.length === 0){
     const hint = document.createElement('div'); hint.style.color='#64748b'; hint.style.fontSize='13px';
-    hint.textContent = 'No tags yet — use the tag icon on items to add';
+    hint.textContent = 'No tags yet — add tags using the tag icon on items';
     chipBar.appendChild(hint);
     return;
   }
@@ -237,52 +232,49 @@ function renderChipBar(){
   });
 }
 
-/* render both lists */
+/* render lists (UI is filtered by chip; CSV always exports all) */
 function renderAll(){
   renderChipBar();
   renderList(LOGS_KEY, logsList, false);
   renderList(TASKS_KEY, tasksList, true);
 }
 
-/* render single list (filtered for UI only) */
+/* render a list into container; preserve correct indices by iterating forward and mapping reversed index */
 function renderList(key, container, isTask){
   container.innerHTML = '';
   const arr = load(key);
   for(let i = arr.length - 1; i >= 0; i--){
     const item = arr[i];
-    if(activeFilter){
-      if(!(item.tags || []).includes(activeFilter)) continue;
-    }
-    const li = buildItem(item, i, key, isTask);
+    if(activeFilter && !(item.tags || []).includes(activeFilter)) continue;
+    const li = buildItemElement(item, i, key, isTask);
     container.appendChild(li);
     animateIn(li);
   }
 }
 
-/* build item DOM element */
-function buildItem(item, index, key, isTask){
+/* build item element */
+function buildItemElement(item, index, key, isTask){
   const li = document.createElement('li'); li.className='item';
   const left = document.createElement('div'); left.className='left';
   const line = document.createElement('div'); line.className='line';
-  const textDiv = document.createElement('div'); textDiv.className='text';
-  // set innerHTML using link-renderer (keeps stored text plain)
-  textDiv.innerHTML = renderTextWithLinks(item.text);
-  textDiv.title = item.text;
-  textDiv.addEventListener('click', (e)=>{ e.stopPropagation(); makeEditable(li, index, key); });
+  const txt = document.createElement('div'); txt.className='text';
+  txt.innerHTML = renderTextWithLinks(item.text || '');
+  txt.title = item.text || '';
+  txt.addEventListener('click', (e)=>{ e.stopPropagation(); makeEditable(li, index, key); });
 
-  line.appendChild(textDiv);
+  line.appendChild(txt);
   left.appendChild(line);
 
-  // tags
+  // tags row
   const tagsRow = document.createElement('div'); tagsRow.className='tags';
-  (item.tags || []).forEach((t, ti)=>{
+  (item.tags || []).forEach((t, ti) => {
     const tagEl = document.createElement('span'); tagEl.className='tag';
     const c = pastelFor(t);
     tagEl.style.background = c.bg; tagEl.style.border = `1px solid ${c.border}`;
     const lbl = document.createElement('span'); lbl.style.maxWidth='160px'; lbl.style.display='inline-block';
     lbl.style.overflow='hidden'; lbl.style.textOverflow='ellipsis'; lbl.style.whiteSpace='nowrap';
     lbl.textContent = t;
-    const btn = document.createElement('button'); btn.textContent = '✖'; btn.title='Remove tag';
+    const btn = document.createElement('button'); btn.textContent = '✖'; btn.title = 'Remove tag';
     btn.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeTag(key, index, ti); });
     tagEl.appendChild(lbl); tagEl.appendChild(btn);
     tagsRow.appendChild(tagEl);
@@ -297,55 +289,64 @@ function buildItem(item, index, key, isTask){
 
   // timestamp
   const ts = document.createElement('div'); ts.className='timestamp';
-  const d = new Date(item.time);
+  const d = new Date(item.time || nowISO());
   ts.innerHTML = `${d.toLocaleDateString()}<br><b>${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>`;
 
-  // right hover icons (complete) show on hover, after timestamp
-  const rightWrapper = document.createElement('div'); rightWrapper.className='right-actions';
-  const rightHover = document.createElement('div'); rightHover.className='hover-icons';
+  // right icons (complete/delete) shown on hover, far right after timestamp
+  const right = document.createElement('div'); right.className='right-actions';
+  const rightWrapper = document.createElement('div'); rightWrapper.className='hover-icons';
+
+  // delete icon for both logs & tasks (user requested delete on logs; keep consistent)
+  const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑️'; delBtn.title='Delete';
+  delBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeItemWithAnimation(key, index); });
+  rightWrapper.appendChild(delBtn);
+
   if(isTask){
     const doneBtn = document.createElement('button'); doneBtn.className='icon-btn'; doneBtn.textContent='✅'; doneBtn.title='Mark complete';
     doneBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); completeTask(index); });
-    rightHover.appendChild(doneBtn);
+    rightWrapper.appendChild(doneBtn);
   }
-  rightWrapper.appendChild(rightHover);
 
+  right.appendChild(rightWrapper);
+
+  // assemble
   li.appendChild(left);
   li.appendChild(leftIcons);
   li.appendChild(ts);
-  li.appendChild(rightWrapper);
+  li.appendChild(right);
 
+  // make keyboard accessible: Enter edits
   li.tabIndex = 0;
   li.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); makeEditable(li, index, key); } });
 
   return li;
 }
 
-/* inline edit (on blur save plain text, then render converts links) */
+/* inline edit preserving newlines — on blur save plain text (not HTML) */
 function makeEditable(li, index, key){
   const arr = load(key);
   if(!arr[index]) return;
   const item = {...arr[index]};
   const left = li.querySelector('.left');
   left.innerHTML = '';
-  const ta = document.createElement('textarea'); ta.className='text-edit'; ta.value = item.text;
+  const ta = document.createElement('textarea'); ta.className='text-edit'; ta.value = item.text || '';
   left.appendChild(ta);
   ta.focus();
-  ta.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); ta.blur(); }});
+  // save on Enter (no shift) or blur
+  ta.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ta.blur(); }});
   ta.addEventListener('blur', ()=>{
-    const v = ta.value.trim();
-    if(v){
-      item.text = v;
-      arr[index] = item;
-      save(key, arr);
+    const v = ta.value;
+    if(typeof v === 'string'){
+      item.text = v; arr[index] = item; save(key, arr);
     }
     renderAll();
   });
 }
 
-/* add item (stores plain text) */
+/* add item */
 function addItem(key, inputEl){
-  const v = inputEl.value.trim(); if(!v) return;
+  const v = inputEl.value;
+  if(!v || !v.trim()) return;
   const arr = load(key);
   arr.push({ text: v, time: nowISO(), tags: [] });
   save(key, arr);
@@ -353,14 +354,15 @@ function addItem(key, inputEl){
   renderAll();
 }
 
-/* complete task */
+/* complete task: animate removal from tasks and add to logs */
 function completeTask(index){
   const tasks = load(TASKS_KEY);
   if(index < 0 || index >= tasks.length) return;
-  const item = tasks.splice(index, 1)[0];
+  const item = tasks.splice(index,1)[0];
+  save(TASKS_KEY, tasks);
   const logs = load(LOGS_KEY);
   logs.push(item);
-  save(TASKS_KEY, tasks); save(LOGS_KEY, logs);
+  save(LOGS_KEY, logs);
   renderAll();
 }
 
@@ -369,46 +371,77 @@ function removeTag(key, index, tagIndex){
   const arr = load(key);
   if(!arr[index]) return;
   arr[index].tags = arr[index].tags || [];
-  arr[index].tags.splice(tagIndex, 1);
+  arr[index].tags.splice(tagIndex,1);
   save(key, arr);
   renderAll();
 }
 
-/* dropdown logic (floating, anchored near clicked item, avoids scroll jump) */
+/* remove item with fade-out animation, then update storage */
+function removeItemWithAnimation(key, index){
+  const container = (key === TASKS_KEY) ? tasksList : logsList;
+  // find the rendered li for that index (we rendered reversed, so find matching by index data)
+  // simpler: perform removal then re-render but animate the removed element if found by matching text+time
+  // find element matching text+time to animate
+  const arr = load(key);
+  if(!arr[index]) return;
+  const target = arr[index];
+  // find DOM li that matches (compare text & time)
+  const nodes = Array.from(container.children);
+  const el = nodes.find(li=>{
+    const ts = li.querySelector('.timestamp');
+    if(!ts) return false;
+    const ttext = li.querySelector('.text')?.textContent || '';
+    const ttime = ts.querySelector ? ts.innerText : ts.innerHTML;
+    // match by text and time contains hour/min - best-effort
+    return ttext === target.text && ts.innerText.includes(new Date(target.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+  });
+  if(el){
+    el.classList.add('leave');
+    setTimeout(()=> {
+      // remove from storage and re-render
+      const cur = load(key);
+      cur.splice(index,1);
+      save(key,cur);
+      renderAll();
+    }, 220);
+  } else {
+    // fallback: remove immediately
+    const cur = load(key);
+    cur.splice(index,1);
+    save(key,cur);
+    renderAll();
+  }
+}
+
+/* tag dropdown (floating, attached to body to avoid scroll reflow) */
 function openTagDropdown(li, index, key){
   closeDropdown();
   const all = getAllTags();
   const dd = document.createElement('div'); dd.className = 'tag-dropdown';
   dd.addEventListener('click', e=>e.stopPropagation());
-
   const existing = document.createElement('div'); existing.className = 'existing';
   if(all.length === 0){
     existing.innerHTML = `<div style="color:#64748b;font-size:13px">No tags yet</div>`;
   } else {
-    all.forEach(t=>{
+    all.forEach(t => {
       const s = document.createElement('div'); s.className='tag-suggest'; s.textContent = t;
       s.addEventListener('click', (ev)=>{ ev.stopPropagation(); addTagToItem(key, index, t); closeDropdown(); });
       existing.appendChild(s);
     });
   }
-
   const input = document.createElement('input'); input.placeholder = 'Type new tag and press Enter';
-  input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); const v = input.value.trim(); if(v){ addTagToItem(key, index, v); closeDropdown(); } } });
-
+  input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); const v = input.value.trim(); if(v){ addTagToItem(key,index,v); closeDropdown(); } }});
   dd.appendChild(existing); dd.appendChild(input);
   document.body.appendChild(dd);
-
-  // position near clicked item (below it)
+  // position below item
   const rect = li.getBoundingClientRect();
   dd.style.left = Math.max(8, rect.left + window.scrollX) + 'px';
   dd.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
-
   input.focus();
   activeDropdown = dd;
   outsideHandler = (ev)=>{ if(!dd.contains(ev.target)) closeDropdown(); };
   document.addEventListener('click', outsideHandler);
 }
-
 function closeDropdown(){
   if(activeDropdown){ activeDropdown.remove(); activeDropdown = null; }
   if(outsideHandler){ document.removeEventListener('click', outsideHandler); outsideHandler = null; }
@@ -426,22 +459,23 @@ function addTagToItem(key, index, tag){
   renderAll();
 }
 
-/* get all tags from store */
+/* get remembered tags */
 function getAllTags(){ return load(TAGS_KEY) || []; }
 
-/* CSV download (always includes all items) */
+/* CSV download (includes all items, ignoring filter) */
 function downloadCSV(){
   const logs = load(LOGS_KEY), tasks = load(TASKS_KEY);
   const rows = [['Type','Text','Tags','Timestamp']];
   logs.forEach(r => rows.push(['Log', r.text, (r.tags||[]).join('; '), r.time]));
   tasks.forEach(r => rows.push(['Task', r.text, (r.tags||[]).join('; '), r.time]));
   const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], {type:'text/csv'}); const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = `office_journal_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `office_journal_${new Date().toISOString().slice(0,10)}.csv`; a.click();
   URL.revokeObjectURL(a.href);
 }
 
-/* wire events */
+/* event wiring */
 addLogBtn.addEventListener('click', ()=>addItem(LOGS_KEY, logInput));
 addTaskBtn.addEventListener('click', ()=>addItem(TASKS_KEY, taskInput));
 logInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); addItem(LOGS_KEY, logInput); }});
