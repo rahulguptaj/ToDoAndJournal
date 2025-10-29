@@ -1,423 +1,575 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Office Journal & ToDos v16.1</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #fafafa;
-      color: #333;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100vh;
-    }
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Office Journal & ToDos v16.1 (fixed)</title>
+<!--
+  v16.1 fixed:
+  - Restored: edit-on-click, Shift+Enter newline, auto-expand edit area
+  - Restored: link-shortening (domain only), multiple links
+  - Restored: pastel tag badges + shared tag filter chips
+  - Tag icon moved to meta (replaces timestamp on hover)
+  - Combined view toggle fixed
+  - Delete, Complete icons present; animations restored
+  - LocalStorage migration: checks old keys and migrates into preferred keys
+  - Storage keys used (preferred): oj_logs_v3, oj_tasks_v3, oj_tags_v3
+    Fallback/migration keys optionally: officeJournalData, officeTasksData, officeTagsData
+-->
+<style>
+  :root{
+    --bg:#f7fafc; --card:#ffffff; --muted:#6b7280; --accent:#2563eb;
+    --log-bg:#eef6ff; --task-bg:#fff1f0;
+    --anim: 0.18s;
+  }
+  html,body{height:100%}
+  body{
+    margin:14px auto; max-width:980px; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    background:var(--bg); color:#0f172a; padding:12px; font-size:14px;
+  }
+  h1{font-size:17px;margin:0}
+  .header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+  .title{display:flex;flex-direction:column}
+  .controls{display:flex;gap:8px;align-items:center}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 8px;font-size:13px;cursor:pointer}
+  .btn.gray{background:#6b7280}
+  .btn.warn{background:#ef4444}
+  .btn.orange{background:#f59e0b}
+  .small{padding:6px 8px;font-size:13px}
 
-    header {
-      width: 100%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background: #f0f0f0;
-      border-bottom: 1px solid #ccc;
-    }
+  .chip-bar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .chip{padding:6px 10px;border-radius:999px;font-size:13px;cursor:pointer;border:1px solid rgba(0,0,0,0.04)}
+  .chip.active{box-shadow:0 6px 18px rgba(15,23,42,0.06);transform:translateY(-1px)}
 
-    header h2 {
-      margin: 0;
-      font-size: 18px;
-    }
+  .main{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:820px){ .main{grid-template-columns:1fr} }
 
-    .container {
-      display: flex;
-      width: 95%;
-      gap: 10px;
-      margin-top: 10px;
-      flex: 1;
-    }
+  .card{background:var(--card);border:1px solid #e6e9ef;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px}
+  .card-header{display:flex;justify-content:space-between;align-items:center}
+  .input-row{display:flex;gap:8px}
+  textarea.input{flex:1;height:34px;padding:6px;border-radius:6px;border:1px solid #d1d5db;font-size:14px;resize:vertical}
+  .add-btn{background:var(--accent);color:#fff;border:0;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px}
 
-    .column {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      border: 1px solid #ddd;
-      background: #fff;
-      border-radius: 6px;
-      padding: 10px;
-      overflow-y: auto;
-      min-height: 0;
-    }
+  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow:auto}
+  li.item{
+    display:flex;align-items:flex-start;gap:8px;padding:10px;border-radius:8px;border:1px solid #eef2f7;background:#fff;
+    font-size:14px;position:relative;transition:transform var(--anim) ease,opacity var(--anim) ease,height var(--anim) ease,margin var(--anim) ease;
+  }
+  li.item.enter{opacity:0;transform:translateY(-6px) scale(.995)}
+  li.item.show{opacity:1;transform:none}
+  li.item.leave{opacity:0;transform:translateY(6px) scale(.995);height:0;margin:0;padding:0;border:0;}
 
-    .column h3 {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 0 0 8px;
-      font-size: 16px;
-    }
+  .item.log-type{background:var(--log-bg)}
+  .item.task-type{background:var(--task-bg)}
 
-    textarea {
-      width: 100%;
-      min-height: 50px;
-      resize: none;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      padding: 6px;
-      font-size: 14px;
-    }
+  .left{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .line{display:flex;align-items:center;gap:10px}
+  .text{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;flex:1;line-height:1.3;cursor:text}
+  .text-edit{width:100%;min-height:56px;padding:6px;border-radius:6px;border:1px solid #e6eef8;font-size:14px;resize:none;overflow:hidden}
 
-    button {
-      background: #3498db;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 6px 10px;
-      cursor: pointer;
-      font-size: 13px;
-    }
+  .text a{font-size:92%;color:#2563eb;text-decoration:none}
+  .text a:hover{text-decoration:underline}
 
-    button:hover { background: #2980b9; }
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{display:inline-flex;align-items:center;gap:6px;padding:2px 6px;border-radius:999px;font-size:12px;color:#0f172a}
+  .tag button{background:transparent;border:0;cursor:pointer;font-size:12px;color:#64748b}
+  .tag button:hover{color:#111}
 
-    .entry {
-      display: flex;
-      flex-direction: row;
-      align-items: flex-start;
-      justify-content: space-between;
-      border-radius: 6px;
-      padding: 8px;
-      margin-bottom: 6px;
-      transition: all 0.2s ease;
-      position: relative;
-      background: #eef6ff; /* log */
-    }
+  .meta{display:flex;align-items:center;gap:8px;min-width:120px;justify-content:flex-end}
+  .timestamp{font-size:12px;color:var(--muted);text-align:right;line-height:1.05;white-space:nowrap}
+  .icons{display:flex;align-items:center;gap:6px}
+  .icon-btn{background:transparent;border:0;cursor:pointer;font-size:15px;color:#475569;padding:4px}
+  .icon-btn:hover{color:#0f172a}
 
-    .entry.task { background: #ffecec; }
+  /* show icons instantly on hover; replace timestamp */
+  .meta .icons{display:none}
+  li.item:hover .meta .icons{display:flex}
+  li.item:hover .meta .timestamp{display:none}
 
-    .entry-content {
-      flex: 1;
-      min-width: 0;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
+  .tag-dropdown{position:fixed;background:#fff;border:1px solid #e6e9ef;border-radius:8px;padding:8px;box-shadow:0 10px 30px rgba(15,23,42,0.08);z-index:999;width:220px}
+  .tag-dropdown .existing{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .tag-suggest{padding:6px 8px;border-radius:6px;background:#f3f4f6;font-size:13px;cursor:pointer}
+  .tag-dropdown input{width:100%;padding:8px;border-radius:6px;border:1px solid #e5e7eb;font-size:13px}
 
-    .meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      justify-content: flex-end;
-      flex-shrink: 0;
-      width: 120px;
-    }
-
-    .timestamp {
-      text-align: right;
-      font-size: 12px;
-      color: #888;
-    }
-
-    .actions {
-      display: none;
-      align-items: center;
-      gap: 6px;
-      justify-content: flex-end;
-    }
-
-    .entry:hover .timestamp { display: none; }
-    .entry:hover .actions { display: flex; }
-
-    .tag {
-      background: #d9f0ff;
-      border-radius: 12px;
-      padding: 2px 6px;
-      font-size: 12px;
-      margin: 2px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .tag button {
-      background: transparent;
-      border: none;
-      color: #555;
-      cursor: pointer;
-      padding: 0;
-      font-size: 12px;
-    }
-
-    .tag-selector {
-      position: absolute;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 6px;
-      display: none;
-      z-index: 10;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    }
-
-    .tag-selector input {
-      width: 100%;
-      margin-bottom: 4px;
-      padding: 4px;
-    }
-
-    .tag-selector div {
-      padding: 4px;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .tag-selector div:hover { background: #eee; }
-
-    .combined .column {
-      display: none;
-    }
-
-    .combined #combinedCol {
-      display: flex;
-    }
-  </style>
+  /* combined view container handling */
+  #combinedContainer{display:none}
+  .combined #combinedContainer{display:block}
+  .combined #layoutGrid{display:none}
+  /* label in combined view */
+  .type-label{font-size:11px;padding:2px 6px;border-radius:6px;color:#0f172a;background:rgba(0,0,0,0.03)}
+</style>
 </head>
 <body>
-  <header>
-    <h2>Office Journal & ToDos v16.1</h2>
-    <div>
-      <button id="downloadBtn">Download CSV</button>
-      <button id="clearLogsBtn">Clear Logs</button>
-      <button id="clearTasksBtn">Clear Tasks</button>
-      <button id="combineToggle">Combined View</button>
-    </div>
-  </header>
-
-  <div class="container" id="container">
-    <div class="column" id="journalCol">
-      <h3>Office Journal</h3>
-      <textarea id="journalInput" placeholder="Log office activity..."></textarea>
-      <button id="addJournal">Add Entry</button>
-      <div id="journalList"></div>
+  <div class="header">
+    <div class="title">
+      <h1>Office Journal & ToDos v16.1</h1>
+      <div style="font-size:12px;color:#64748b">compact readable — edits preserved</div>
     </div>
 
-    <div class="column" id="taskCol">
-      <h3>ToDos</h3>
-      <textarea id="taskInput" placeholder="Add a new task..."></textarea>
-      <button id="addTask">Add Task</button>
-      <div id="taskList"></div>
-    </div>
-
-    <div class="column" id="combinedCol" style="display:none;">
-      <h3>Combined View</h3>
-      <div id="combinedList"></div>
+    <div class="controls">
+      <button id="combineToggle" class="btn gray small">Combine View: Off</button>
+      <button id="downloadBtn" class="btn small">Download CSV</button>
     </div>
   </div>
 
-  <div class="tag-selector" id="tagSelector"></div>
+  <div id="chipBar" class="chip-bar" aria-label="Tag filter bar"></div>
 
-  <script>
-    const journalInput = document.getElementById('journalInput');
-    const taskInput = document.getElementById('taskInput');
-    const addJournal = document.getElementById('addJournal');
-    const addTask = document.getElementById('addTask');
-    const journalList = document.getElementById('journalList');
-    const taskList = document.getElementById('taskList');
-    const combinedList = document.getElementById('combinedList');
-    const tagSelector = document.getElementById('tagSelector');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const clearLogsBtn = document.getElementById('clearLogsBtn');
-    const clearTasksBtn = document.getElementById('clearTasksBtn');
-    const combineToggle = document.getElementById('combineToggle');
-    const container = document.getElementById('container');
-    const journalCol = document.getElementById('journalCol');
-    const taskCol = document.getElementById('taskCol');
-    const combinedCol = document.getElementById('combinedCol');
+  <div id="layoutGrid" class="main">
+    <div class="card" id="logsCard">
+      <div class="card-header">
+        <div class="section-title">Activity Log</div>
+        <button id="clearLogsBtn" class="btn warn small">Clear</button>
+      </div>
+      <div class="input-row">
+        <textarea id="logInput" class="input" placeholder="Quick log — Enter to add"></textarea>
+        <button id="addLogBtn" class="add-btn">Add</button>
+      </div>
+      <ul id="logsList" class="list" aria-live="polite"></ul>
+    </div>
 
-    let logs = JSON.parse(localStorage.getItem('officeJournalData') || '[]');
-    let tasks = JSON.parse(localStorage.getItem('officeTasksData') || '[]');
-    let combinedView = false;
+    <div class="card" id="tasksCard">
+      <div class="card-header">
+        <div class="section-title">To-Do List</div>
+        <button id="clearTasksBtn" class="btn orange small">Clear</button>
+      </div>
+      <div class="input-row">
+        <textarea id="taskInput" class="input" placeholder="Add task — Enter to add"></textarea>
+        <button id="addTaskBtn" class="add-btn">Add</button>
+      </div>
+      <ul id="tasksList" class="list" aria-live="polite"></ul>
+    </div>
+  </div>
 
-    function saveData() {
-      localStorage.setItem('officeJournalData', JSON.stringify(logs));
-      localStorage.setItem('officeTasksData', JSON.stringify(tasks));
+  <div id="combinedContainer" style="margin-top:10px;">
+    <div class="card">
+      <div class="card-header">
+        <div class="section-title">Combined View</div>
+        <div style="font-size:13px;color:#64748b">merged by timestamp</div>
+      </div>
+      <div id="combinedList" class="list" style="max-height:52vh;overflow:auto;"></div>
+    </div>
+  </div>
+
+  <div id="tagDropdown" class="tag-dropdown" style="display:none"></div>
+
+<script>
+/* ===== STORAGE KEYS & MIGRATION =====
+   Preferred keys (used by this app):
+     oj_logs_v3, oj_tasks_v3, oj_tags_v3
+
+   Older keys sometimes used by previous builds:
+     officeJournalData, officeTasksData, officeTagsData
+
+   This code will:
+   - If preferred keys exist, use them.
+   - Else if old keys exist, migrate them into preferred keys.
+   - If both exist, prefer preferred keys and leave old keys untouched.
+*/
+const P_LOGS = 'oj_logs_v3';
+const P_TASKS = 'oj_tasks_v3';
+const P_TAGS = 'oj_tags_v3';
+
+const OLD_LOGS = 'officeJournalData';
+const OLD_TASKS = 'officeTasksData';
+const OLD_TAGS = 'officeTagsData';
+
+function rawLoad(key){ try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){ return null; } }
+function rawSave(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+function loadOrMigrate(){
+  let logs = rawLoad(P_LOGS);
+  let tasks = rawLoad(P_TASKS);
+  let tags = rawLoad(P_TAGS);
+  // if preferred missing but old present, migrate
+  if((!logs || !Array.isArray(logs)) && rawLoad(OLD_LOGS)){
+    logs = rawLoad(OLD_LOGS) || [];
+    rawSave(P_LOGS, logs);
+  }
+  if((!tasks || !Array.isArray(tasks)) && rawLoad(OLD_TASKS)){
+    tasks = rawLoad(OLD_TASKS) || [];
+    rawSave(P_TASKS, tasks);
+  }
+  if((!tags || !Array.isArray(tags)) && rawLoad(OLD_TAGS)){
+    tags = rawLoad(OLD_TAGS) || [];
+    rawSave(P_TAGS, tags);
+  }
+  // final fallback: ensure arrays
+  logs = Array.isArray(logs) ? logs : [];
+  tasks = Array.isArray(tasks) ? tasks : [];
+  tags = Array.isArray(tags) ? tags : [];
+  return {logs, tasks, tags};
+}
+
+/* helpers */
+function load(key){ try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] } }
+function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+function nowISO(){ return new Date().toISOString(); }
+
+/* DOM refs */
+const logsList = document.getElementById('logsList');
+const tasksList = document.getElementById('tasksList');
+const combinedList = document.getElementById('combinedList');
+const chipBar = document.getElementById('chipBar');
+const logInput = document.getElementById('logInput');
+const taskInput = document.getElementById('taskInput');
+const addLogBtn = document.getElementById('addLogBtn');
+const addTaskBtn = document.getElementById('addTaskBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const clearLogsBtn = document.getElementById('clearLogsBtn');
+const clearTasksBtn = document.getElementById('clearTasksBtn');
+const combineToggle = document.getElementById('combineToggle');
+const tagDropdown = document.getElementById('tagDropdown');
+const layoutGrid = document.getElementById('layoutGrid');
+const combinedContainer = document.getElementById('combinedContainer');
+
+let {logs, tasks, tags} = loadOrMigrate();
+let activeFilter = null;
+let activeDropdown = null;
+let outsideHandler = null;
+let combineView = false;
+
+/* pastel color map */
+function pastelFor(tag){
+  const palette = [
+    ['#FDE8E8','#FCA5A5'], ['#FEF3C7','#FCD34D'], ['#E6FFFA','#81E6D9'],
+    ['#EFF6FF','#93C5FD'], ['#F3E8FF','#C4B5FD'], ['#FFF7ED','#FDBA74'],
+    ['#F0F9FF','#BFDBFE'], ['#F7FEE7','#86EFAC']
+  ];
+  let h=0;
+  for(let i=0;i<tag.length;i++) h = (h*31 + tag.charCodeAt(i))|0;
+  const p = palette[Math.abs(h) % palette.length];
+  return {bg: p[0], border: p[1]};
+}
+
+/* URL detection -> domain only rendering (multiple links) */
+function renderTextWithLinks(text){
+  if(!text) return '';
+  const urlRegex = /((https?:\/\/|www\.)[^\s,;]+)/gi;
+  const parts = [];
+  let last = 0, m;
+  while((m = urlRegex.exec(text)) !== null){
+    const start = m.index, full = m[0];
+    if(start > last) parts.push(escapeHtml(text.slice(last, start)).replace(/\n/g,'<br>'));
+    let href = full;
+    if(/^www\./i.test(full)) href = 'https://' + full;
+    try {
+      const u = new URL(href);
+      const host = u.hostname.replace(/^www\./,'');
+      parts.push(`<a href="${escapeAttr(href)}" target="_blank">${escapeHtml(host)}</a>`);
+    } catch(e){
+      parts.push(escapeHtml(full));
     }
+    last = start + full.length;
+  }
+  if(last < text.length) parts.push(escapeHtml(text.slice(last)).replace(/\n/g,'<br>'));
+  return parts.join('');
+}
+function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+function escapeAttr(s){ return String(s).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
-    function addEntry(type, text) {
-      if (!text.trim()) return;
-      const entry = {
-        text,
-        time: new Date().toLocaleString(),
-        tags: []
-      };
-      if (type === 'log') logs.unshift(entry);
-      else tasks.unshift(entry);
-      saveData();
-      render();
+/* UI rendering */
+function renderChipBar(){
+  chipBar.innerHTML = '';
+  const allTags = load(P_TAGS) || [];
+  if(allTags.length === 0){
+    const hint = document.createElement('div'); hint.style.color='#64748b'; hint.style.fontSize='13px';
+    hint.textContent = 'No tags yet — add via the tag icon';
+    chipBar.appendChild(hint); return;
+  }
+  allTags.forEach(t=>{
+    const c = pastelFor(t);
+    const chip = document.createElement('div'); chip.className='chip';
+    chip.style.background = c.bg; chip.style.border = `1px solid ${c.border}`; chip.textContent = t;
+    if(activeFilter === t) chip.classList.add('active');
+    chip.addEventListener('click', (e)=>{ e.stopPropagation(); activeFilter = (activeFilter === t) ? null : t; renderAll(); });
+    chipBar.appendChild(chip);
+  });
+}
+
+function animateIn(el){
+  el.classList.add('enter');
+  requestAnimationFrame(()=> requestAnimationFrame(()=> el.classList.add('show')));
+  setTimeout(()=> el.classList.remove('enter'), 260);
+}
+
+function buildItemElement(item, index, key, isTask){
+  const li = document.createElement('li'); li.className = 'item';
+  if(key === P_LOGS) li.classList.add('log-type'); else li.classList.add('task-type');
+
+  const left = document.createElement('div'); left.className = 'left';
+  const line = document.createElement('div'); line.className = 'line';
+  const textDiv = document.createElement('div'); textDiv.className = 'text';
+  textDiv.innerHTML = renderTextWithLinks(item.text || '');
+  textDiv.title = item.text || '';
+  // edit-on-click
+  textDiv.addEventListener('click', (e)=>{ e.stopPropagation(); makeEditable(li, index, key); });
+
+  line.appendChild(textDiv);
+  left.appendChild(line);
+
+  const tagsRow = document.createElement('div'); tagsRow.className = 'tags';
+  (item.tags || []).forEach((t, ti)=>{
+    const tagEl = document.createElement('span'); tagEl.className = 'tag';
+    const c = pastelFor(t);
+    tagEl.style.background = c.bg; tagEl.style.border = `1px solid ${c.border}`;
+    const lbl = document.createElement('span'); lbl.style.maxWidth='140px'; lbl.style.display='inline-block';
+    lbl.style.overflow='hidden'; lbl.style.textOverflow='ellipsis'; lbl.style.whiteSpace='nowrap';
+    lbl.textContent = t;
+    const rm = document.createElement('button'); rm.textContent = '✖'; rm.title='Remove tag';
+    rm.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeTag(key, index, ti); });
+    tagEl.appendChild(lbl); tagEl.appendChild(rm); tagsRow.appendChild(tagEl);
+  });
+  left.appendChild(tagsRow);
+
+  const meta = document.createElement('div'); meta.className = 'meta';
+  const ts = document.createElement('div'); ts.className = 'timestamp';
+  const d = new Date(item.time || nowISO());
+  ts.innerHTML = `${d.toLocaleDateString()}<br><b>${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>`;
+  meta.appendChild(ts);
+
+  const icons = document.createElement('div'); icons.className = 'icons';
+  // tag button
+  const tagBtn = document.createElement('button'); tagBtn.className = 'icon-btn'; tagBtn.textContent = '🏷️'; tagBtn.title='Add tag';
+  tagBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); openTagDropdown(li, index, key); });
+  icons.appendChild(tagBtn);
+  // delete button
+  const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑️'; delBtn.title='Delete';
+  delBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); removeItemWithAnimation(key, index); });
+  icons.appendChild(delBtn);
+  // complete for tasks
+  if(isTask){
+    const doneBtn = document.createElement('button'); doneBtn.className='icon-btn'; doneBtn.textContent='✅'; doneBtn.title='Mark complete';
+    doneBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); completeTask(index); });
+    icons.appendChild(doneBtn);
+  }
+  meta.appendChild(icons);
+
+  li.appendChild(left);
+  li.appendChild(meta);
+
+  li.tabIndex = 0;
+  li.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); makeEditable(li, index, key); } });
+
+  return li;
+}
+
+/* inline edit with Shift+Enter for newline, Enter to save; auto-resize */
+function makeEditable(li, index, key){
+  const arr = load(key);
+  if(!arr[index]) return;
+  const item = {...arr[index]};
+  const left = li.querySelector('.left');
+  left.innerHTML = '';
+  const ta = document.createElement('textarea'); ta.className = 'text-edit'; ta.value = item.text || '';
+  // auto-resize helper
+  function resizeTa(){ ta.style.height = 'auto'; ta.style.height = Math.max(56, ta.scrollHeight) + 'px'; }
+  ta.addEventListener('input', resizeTa);
+  // Shift+Enter => newline; Enter => save and close
+  ta.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      const v = ta.value;
+      item.text = v;
+      arr[index] = item;
+      save(key, arr);
+      renderAll();
     }
+    // allow tab key insert?
+    // Optionally, you could implement Tab behavior here
+  });
+  left.appendChild(ta);
+  ta.focus();
+  resizeTa();
+}
 
-    function deleteEntry(type, index) {
-      if (type === 'log') logs.splice(index, 1);
-      else tasks.splice(index, 1);
-      saveData();
-      render();
-    }
+/* add item (store plain text) */
+function addItem(key, inputEl){
+  const v = inputEl.value;
+  if(!v || !v.trim()) return;
+  const arr = load(key);
+  arr.push({ text: v, time: nowISO(), tags: [] });
+  save(key, arr);
+  inputEl.value = '';
+  renderAll();
+}
 
-    function completeTask(index) {
-      const completed = tasks.splice(index, 1)[0];
-      logs.unshift({ ...completed, time: new Date().toLocaleString() });
-      saveData();
-      render();
-    }
+/* complete task -> move to logs */
+function completeTask(index){
+  const t = load(P_TASKS);
+  if(index < 0 || index >= t.length) return;
+  const item = t.splice(index,1)[0];
+  save(P_TASKS, t);
+  const l = load(P_LOGS);
+  l.push(item);
+  save(P_LOGS, l);
+  renderAll();
+}
 
-    function editEntry(type, index) {
-      const list = type === 'log' ? logs : tasks;
-      const entryDiv = (type === 'log' ? journalList : taskList).children[index];
-      const content = entryDiv.querySelector('.entry-content');
-      const oldText = list[index].text;
+/* remove tag from item */
+function removeTag(key, index, tagIndex){
+  const arr = load(key);
+  if(!arr[index]) return;
+  arr[index].tags = arr[index].tags || [];
+  arr[index].tags.splice(tagIndex,1);
+  save(key,arr);
+  renderAll();
+}
 
-      const textarea = document.createElement('textarea');
-      textarea.value = oldText;
-      textarea.style.width = '100%';
-      textarea.style.fontSize = '14px';
-      textarea.style.resize = 'none';
-      textarea.addEventListener('input', () => {
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
-      });
-      textarea.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          list[index].text = textarea.value.trim();
-          saveData();
-          render();
-        }
-      });
-      content.replaceWith(textarea);
-      textarea.focus();
-      textarea.style.height = textarea.scrollHeight + 'px';
-    }
-
-    function showTagSelector(e, type, index) {
-      e.stopPropagation();
-      const list = type === 'log' ? logs : tasks;
-      const allTags = [...new Set([...logs, ...tasks].flatMap(x => x.tags))];
-      tagSelector.innerHTML = `<input placeholder="Add new tag..." />` +
-        allTags.map(t => `<div>${t}</div>`).join('');
-      const rect = e.target.getBoundingClientRect();
-      tagSelector.style.left = rect.left + 'px';
-      tagSelector.style.top = rect.bottom + 'px';
-      tagSelector.style.display = 'block';
-
-      const input = tagSelector.querySelector('input');
-      input.focus();
-
-      input.addEventListener('keydown', ev => {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          const newTag = input.value.trim();
-          if (newTag && !list[index].tags.includes(newTag)) {
-            list[index].tags.push(newTag);
-            saveData();
-            render();
-          }
-          tagSelector.style.display = 'none';
-        }
-      });
-
-      tagSelector.querySelectorAll('div').forEach(d => {
-        d.addEventListener('click', () => {
-          if (!list[index].tags.includes(d.textContent)) {
-            list[index].tags.push(d.textContent);
-            saveData();
-            render();
-          }
-          tagSelector.style.display = 'none';
-        });
-      });
-    }
-
-    function removeTag(type, index, tag) {
-      const list = type === 'log' ? logs : tasks;
-      list[index].tags = list[index].tags.filter(t => t !== tag);
-      saveData();
-      render();
-    }
-
-    function createEntry(type, item, index) {
-      const div = document.createElement('div');
-      div.className = 'entry' + (type === 'task' ? ' task' : '');
-      div.innerHTML = `
-        <div class="left">
-          <div class="entry-content">${item.text}</div>
-          <div>${item.tags.map(t => `<span class="tag">${t}<button onclick="removeTag('${type}',${index},'${t}')">×</button></span>`).join('')}</div>
-        </div>
-        <div class="meta">
-          <div class="timestamp">${item.time}</div>
-          <div class="actions">
-            <button onclick="showTagSelector(event,'${type}',${index})">🏷️</button>
-            ${type === 'task' ? `<button onclick="completeTask(${index})">✅</button>` : ''}
-            <button onclick="editEntry('${type}',${index})">✏️</button>
-            <button onclick="deleteEntry('${type}',${index})">🗑️</button>
-          </div>
-        </div>`;
-      return div;
-    }
-
-    function render() {
-      journalList.innerHTML = '';
-      taskList.innerHTML = '';
-      combinedList.innerHTML = '';
-      tagSelector.style.display = 'none';
-
-      logs.forEach((x, i) => journalList.appendChild(createEntry('log', x, i)));
-      tasks.forEach((x, i) => taskList.appendChild(createEntry('task', x, i)));
-
-      const all = [...logs.map(x => ({...x, type:'log'})), ...tasks.map(x => ({...x, type:'task'}))];
-      all.sort((a,b) => new Date(b.time) - new Date(a.time));
-      all.forEach((x,i) => combinedList.appendChild(createEntry(x.type, x, i)));
-
-      container.classList.toggle('combined', combinedView);
-    }
-
-    document.addEventListener('click', () => tagSelector.style.display = 'none');
-    addJournal.onclick = () => { addEntry('log', journalInput.value); journalInput.value = ''; };
-    addTask.onclick = () => { addEntry('task', taskInput.value); taskInput.value = ''; };
-
-    journalInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        addEntry('log', journalInput.value);
-        journalInput.value = '';
-      }
+/* floating tag dropdown near clicked item */
+function openTagDropdown(li, index, key){
+  closeDropdown();
+  const allTags = load(P_TAGS);
+  const dd = document.createElement('div'); dd.className = 'tag-dropdown';
+  dd.addEventListener('click', e=>e.stopPropagation());
+  const existing = document.createElement('div'); existing.className='existing';
+  if(allTags.length === 0) existing.innerHTML = `<div style="color:#64748b;font-size:13px">No tags yet</div>`;
+  else {
+    allTags.forEach(t=>{
+      const s = document.createElement('div'); s.className = 'tag-suggest'; s.textContent = t;
+      s.addEventListener('click', ()=>{ addTagToItem(key,index,t); closeDropdown(); });
+      existing.appendChild(s);
     });
+  }
+  const input = document.createElement('input'); input.placeholder = 'Type new tag and press Enter';
+  input.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); const v = input.value.trim(); if(v){ addTagToItem(key,index,v); closeDropdown(); } }
+  });
+  dd.appendChild(existing); dd.appendChild(input);
+  document.body.appendChild(dd);
+  // position below item (avoid scroll jump)
+  const rect = li.getBoundingClientRect();
+  dd.style.left = Math.max(8, rect.left + window.scrollX) + 'px';
+  dd.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
+  input.focus();
+  activeDropdown = dd;
+  outsideHandler = (ev)=>{ if(!dd.contains(ev.target)) closeDropdown(); };
+  document.addEventListener('click', outsideHandler);
+}
+function closeDropdown(){
+  if(activeDropdown){ activeDropdown.remove(); activeDropdown = null; }
+  if(outsideHandler){ document.removeEventListener('click', outsideHandler); outsideHandler = null; }
+}
+function addTagToItem(key, index, tag){
+  const arr = load(key);
+  if(!arr[index]) return;
+  arr[index].tags = arr[index].tags || [];
+  if(!arr[index].tags.includes(tag)) arr[index].tags.push(tag);
+  save(key,arr);
+  // remember globally
+  const g = load(P_TAGS);
+  if(!g.includes(tag)){ g.push(tag); save(P_TAGS, g); }
+  renderAll();
+}
 
-    taskInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        addEntry('task', taskInput.value);
-        taskInput.value = '';
-      }
-    });
+/* remove item with animation */
+function removeItemWithAnimation(key, index){
+  const arr = load(key);
+  if(!arr[index]) return;
+  const container = (key === P_TASKS) ? tasksList : logsList;
+  const nodes = Array.from(container.children);
+  const target = arr[index];
+  // best-effort find element by text + time
+  const el = nodes.find(li=>{
+    const tt = li.querySelector('.text')?.textContent || '';
+    const ts = li.querySelector('.timestamp')?.innerText || '';
+    return tt === target.text && ts.includes(new Date(target.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+  });
+  if(el){
+    el.classList.add('leave');
+    setTimeout(()=> {
+      const cur = load(key);
+      cur.splice(index,1);
+      save(key,cur);
+      renderAll();
+    }, 220);
+  } else {
+    const cur = load(key);
+    cur.splice(index,1);
+    save(key,cur);
+    renderAll();
+  }
+}
 
-    clearLogsBtn.onclick = () => { if(confirm('Clear all logs?')) { logs = []; saveData(); render(); }};
-    clearTasksBtn.onclick = () => { if(confirm('Clear all tasks?')) { tasks = []; saveData(); render(); }};
-    combineToggle.onclick = () => { combinedView = !combinedView; render(); };
+/* render lists (filtered by activeFilter for UI only) */
+function renderAll(){
+  renderChipBar();
+  if(combineView){
+    layoutGrid.style.display = 'none';
+    combinedContainer.style.display = 'block';
+    renderCombined();
+  } else {
+    combinedContainer.style.display = 'none';
+    layoutGrid.style.display = 'grid';
+    renderList(P_LOGS, logsList, false);
+    renderList(P_TASKS, tasksList, true);
+  }
+}
 
-    downloadBtn.onclick = () => {
-      const all = [...logs.map(x => ({...x, type:'Log'})), ...tasks.map(x => ({...x, type:'Task'}))];
-      const csv = 'Type,Time,Text,Tags\n' + all.map(x =>
-        [x.type, `"${x.time}"`, `"${x.text.replace(/"/g,'""')}"`, `"${x.tags.join(', ')}"`].join(',')
-      ).join('\n');
-      const blob = new Blob([csv], {type:'text/csv'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'office_journal_v16.1.csv';
-      a.click();
-    };
+/* render single list */
+function renderList(key, container, isTask){
+  container.innerHTML = '';
+  const arr = load(key);
+  for(let i = arr.length-1; i >= 0; i--){
+    const item = arr[i];
+    if(activeFilter && !(item.tags || []).includes(activeFilter)) continue;
+    const li = buildItemElement(item, i, key, isTask);
+    container.appendChild(li);
+    animateIn(li);
+  }
+}
 
-    render();
-  </script>
+/* combined: merge by timestamp desc */
+function renderCombined(){
+  combinedList.innerHTML = '';
+  const L = load(P_LOGS).map((x,i)=> ({...x, _type:'Log', _idx:i}));
+  const T = load(P_TASKS).map((x,i)=> ({...x, _type:'Task', _idx:i}));
+  const all = L.concat(T).sort((a,b)=> new Date(b.time) - new Date(a.time));
+  all.forEach(item=>{
+    if(activeFilter && !(item.tags || []).includes(activeFilter)) return;
+    const key = item._type === 'Log' ? P_LOGS : P_TASKS;
+    const li = buildItemElement(item, item._idx, key, item._type === 'Task');
+    // add a tiny label to identify
+    const label = document.createElement('div'); label.className='type-label';
+    label.textContent = item._type;
+    li.querySelector('.left').insertBefore(label, li.querySelector('.left').firstChild);
+    combinedList.appendChild(li);
+    animateIn(li);
+  });
+}
+
+/* CSV download (all items regardless of filter) */
+function downloadCSV(){
+  const logsAll = load(P_LOGS), tasksAll = load(P_TASKS);
+  const rows = [['Type','Text','Tags','Timestamp']];
+  logsAll.forEach(r => rows.push(['Log', r.text, (r.tags||[]).join('; '), r.time]));
+  tasksAll.forEach(r => rows.push(['Task', r.text, (r.tags||[]).join('; '), r.time]));
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'}); const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `office_journal_v16.1_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* wire events */
+addLogBtn.addEventListener('click', ()=> addItem(P_LOGS, logInput));
+addTaskBtn.addEventListener('click', ()=> addItem(P_TASKS, taskInput));
+logInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); addItem(P_LOGS, logInput); }});
+taskInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); addItem(P_TASKS, taskInput); }});
+
+clearLogsBtn.addEventListener('click', ()=>{ if(confirm('Clear all logs?')){ localStorage.removeItem(P_LOGS); renderAll(); }});
+clearTasksBtn.addEventListener('click', ()=>{ if(confirm('Clear all tasks?')){ localStorage.removeItem(P_TASKS); renderAll(); }});
+downloadBtn.addEventListener('click', downloadCSV);
+combineToggle.addEventListener('click', ()=>{
+  combineView = !combineView;
+  combineToggle.textContent = `Combine View: ${combineView ? 'On' : 'Off'}`;
+  renderAll();
+});
+
+/* tag dropdown close on escape / outside */
+document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeDropdown(); });
+document.addEventListener('click', ()=> closeDropdown());
+
+/* initial render */
+renderAll();
+</script>
 </body>
 </html>
