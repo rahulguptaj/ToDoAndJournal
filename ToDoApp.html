@@ -1,0 +1,632 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Activity Log & To-Do SPA</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f9;
+            --main-color: #ffffff;
+            --text-color: #333;
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+            --accent-color: #007bff;
+            --accent-hover: #0056b3;
+            --red-color: #dc3545;
+            --red-hover: #c82333;
+            --green-color: #28a745;
+            --grey-color: #6c757d;
+            --todo-bg-color: #eef7ff;
+            --log-bg-color: #f6f8fa;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+        }
+        h1 {
+            text-align: center;
+            color: var(--accent-color);
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 5px;
+            background-color: var(--main-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .controls button {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            font-size: 14px;
+        }
+        .controls button:hover {
+            background-color: #e9ecef;
+        }
+        .controls button.active {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+        #download-csv-btn {
+            background-color: var(--green-color);
+            color: white;
+            border-color: var(--green-color);
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        #item-input, #tags-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 16px;
+            transition: box-shadow 0.2s;
+        }
+        #item-input:focus, #tags-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        #add-todo-btn, #add-log-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            background-color: var(--accent-color);
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        #add-log-btn { background-color: var(--grey-color); }
+        #add-todo-btn:hover { background-color: var(--accent-hover); }
+        #add-log-btn:hover { background-color: #5a6268; }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .column {
+            background-color: var(--main-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+        .column h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        
+        #tag-filters-container {
+            padding: 15px;
+            margin-bottom: 20px;
+            background: var(--main-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+        
+        .item-list { list-style: none; padding: 0; margin: 0; }
+        
+        .item {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            margin-bottom: 8px;
+            position: relative;
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.3s ease;
+        }
+        .item-todo {
+            background-color: var(--todo-bg-color);
+            border-left: 3px solid var(--accent-color);
+        }
+        .item-log {
+            background-color: var(--log-bg-color);
+            border-left: 3px solid var(--grey-color);
+        }
+        .item.fade-out { opacity: 0; transform: scale(0.95); }
+        .item-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .item-text { flex-grow: 1; word-break: break-word; cursor: text; }
+        .item-text-editing { padding: 8px; border: 1px solid var(--accent-color); border-radius: 4px; width: 100%; font-size: 1em; }
+        
+        .item-actions { display: flex; align-items: center; gap: 8px; }
+        .item-actions button {
+            background: none; border: none; cursor: pointer; padding: 5px;
+            opacity: 0.6; transition: opacity 0.2s; position: relative;
+        }
+        .item-actions button:hover { opacity: 1; }
+        .item-actions button .icon-tooltip {
+            visibility: hidden; opacity: 0; position: absolute; bottom: 125%; left: 50%;
+            transform: translateX(-50%); background-color: #333; color: white;
+            padding: 4px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+        .item-actions button:hover .icon-tooltip { visibility: visible; opacity: 1; }
+        
+        .tags-container { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 10px; }
+        .tag {
+            padding: 3px 8px; border-radius: 5px; font-size: 12px;margin:3px;
+            cursor: pointer; transition: transform 0.2s;
+        }
+        .tag.active-filter { transform: scale(1.1); box-shadow: 0 0 0 2px var(--accent-color); }
+        .tag-editing-input { border: 1px solid var(--accent-color); border-radius: 4px; padding: 4px; font-size: 12px; }
+
+        .item-timestamp {
+            visibility: hidden; opacity: 0; position: absolute; top: -25px; left: 0;
+            background: #333; color: white; padding: 4px 8px; border-radius: 4px;
+            font-size: 12px; white-space: nowrap; transition: opacity 0.2s; pointer-events: none;
+        }
+        .item:hover .item-timestamp { visibility: visible; opacity: 1; }
+        
+        .group-header {
+            cursor: pointer; font-weight: bold; padding: 10px; background-color: #f0f0f0;
+            border-radius: 5px; margin: 10px 0 5px;
+        }
+        .group-header::before { content: '▼ '; display: inline-block; transition: transform 0.2s; }
+        .group-header.collapsed::before { transform: rotate(-90deg); }
+        .group-content { padding-left: 20px; max-height: 1000px; overflow: hidden; transition: max-height 0.3s ease-in-out; }
+        .group-content.collapsed { max-height: 0; }
+        
+        .footer-actions {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: var(--main-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .footer-actions button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: var(--red-color);
+            transition: background-color 0.2s;
+        }
+        .footer-actions button:hover {
+            background-color: var(--red-hover);
+        }
+
+        @media (max-width: 768px) {
+            .main-content { grid-template-columns: 1fr; }
+            .input-area { flex-direction: column; }
+            .footer-actions { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Activity & To-Do Tracker</h1>
+
+        <div class="input-area">
+            <input type="text" id="item-input" placeholder="What's on your mind? (Enter for To-Do, Ctrl+Enter for Log)">
+            <input type="text" id="tags-input" placeholder="Add tags, comma-separated...">
+            <button id="add-todo-btn">Add To-Do</button>
+            <button id="add-log-btn">Add Log</button>
+        </div>
+
+        <div class="controls">
+			<div id="tag-filters-container"></div>
+            <div class="control-group">
+                <span>View:</span>
+                <button id="group-by-tag-btn">Group by Tag</button>
+                <button id="combined-view-btn">Combined View</button>
+            </div>
+            <button id="download-csv-btn">Download CSV</button>
+			
+        </div>
+
+        
+
+        <div class="main-content">
+            <div class="column" id="todo-column">
+                <h2>To-Do</h2>
+                <ul id="todo-list" class="item-list"></ul>
+            </div>
+            <div class="column" id="log-column">
+                <h2>Activity Log</h2>
+                <ul id="log-list" class="item-list"></ul>
+            </div>
+            <div class="column" id="combined-column" style="display: none;">
+                <h2>Combined View</h2>
+                <ul id="combined-list" class="item-list"></ul>
+            </div>
+        </div>
+
+        <div class="footer-actions">
+            <button id="clear-todo-btn">Clear All To-Dos</button>
+            <button id="clear-log-btn">Clear All Logs</button>
+        </div>
+
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // ... (existing element references)
+        const itemInput = document.getElementById('item-input');
+        const tagsInput = document.getElementById('tags-input');
+        const addTodoBtn = document.getElementById('add-todo-btn');
+        const addLogBtn = document.getElementById('add-log-btn');
+        const todoList = document.getElementById('todo-list');
+        const logList = document.getElementById('log-list');
+        const combinedList = document.getElementById('combined-list');
+        const groupByTagBtn = document.getElementById('group-by-tag-btn');
+        const combinedViewBtn = document.getElementById('combined-view-btn');
+        const downloadCsvBtn = document.getElementById('download-csv-btn');
+        const tagFiltersContainer = document.getElementById('tag-filters-container');
+        const todoColumn = document.getElementById('todo-column');
+        const logColumn = document.getElementById('log-column');
+        const combinedColumn = document.getElementById('combined-column');
+        const clearTodoBtn = document.getElementById('clear-todo-btn');
+        const clearLogBtn = document.getElementById('clear-log-btn');
+
+        let state = {
+            items: JSON.parse(localStorage.getItem('activityLogItems')) || [],
+            groupByTag: false,
+            combinedView: false,
+            activeTagFilter: null,
+        };
+        
+        const pastelColors = [ '#FFADAD', '#FFD6A5', '#FDFFB6', '#CAFFBF', '#9BF6FF', '#A0C4FF', '#BDB2FF', '#FFC6FF' ];
+        const tagColorMap = {};
+        let nextColorIndex = 0;
+
+        const saveState = () => localStorage.setItem('activityLogItems', JSON.stringify(state.items));
+        const getTagColor = (tag) => {
+            if (!tagColorMap[tag]) {
+                tagColorMap[tag] = pastelColors[nextColorIndex % pastelColors.length];
+                nextColorIndex++;
+            }
+            return tagColorMap[tag];
+        };
+
+        const addItem = (type) => {
+            const text = itemInput.value.trim();
+            if (text === '') return;
+            const tags = tagsInput.value.trim().split(',').map(t => t.trim()).filter(Boolean);
+            state.items.unshift({
+                id: Date.now(), text, type, tags, timestamp: new Date().toISOString()
+            });
+            itemInput.value = '';
+            tagsInput.value = '';
+            saveState();
+            render();
+            itemInput.focus();
+        };
+
+        const updateItem = (id, newText) => {
+            const item = state.items.find(i => i.id === id);
+            if (item && newText) { item.text = newText; saveState(); }
+            render();
+        };
+
+        const updateTags = (id, newTags) => {
+            const item = state.items.find(i => i.id === id);
+            if(item) { item.tags = newTags; saveState(); }
+            render();
+        };
+
+        window.deleteItem = (id) => {
+            const li = document.querySelector(`[data-id='${id}']`);
+            if (li) {
+                li.classList.add('fade-out');
+                setTimeout(() => {
+                    state.items = state.items.filter(i => i.id !== id);
+                    saveState();
+                    render();
+                }, 300);
+            }
+        };
+
+        window.completeTask = (id) => {
+            const item = state.items.find(i => i.id === id);
+            if (item) {
+                const li = document.querySelector(`[data-id='${id}']`);
+                if (li) {
+                    li.classList.add('fade-out');
+                    setTimeout(() => {
+                        item.type = 'log';
+                        item.completedTimestamp = new Date().toISOString();
+                        saveState();
+                        render();
+                    }, 300);
+                }
+            }
+        };
+
+        window.reopenTask = (id) => {
+            const item = state.items.find(i => i.id === id);
+            const li = document.querySelector(`[data-id='${id}']`);
+            
+            if (item && li) {
+                li.classList.add('fade-out');
+                setTimeout(() => {
+                    item.type = 'todo';
+                    delete item.completedTimestamp;
+                    saveState();
+                    render(); 
+                }, 300);
+            }
+        };
+        
+        const clearTodos = () => {
+            if (window.confirm("Are you sure you want to delete all To-Do items? This cannot be undone.")) {
+                state.items = state.items.filter(item => item.type !== 'todo');
+                saveState();
+                render();
+            }
+        };
+
+        const clearLogs = () => {
+            if (window.confirm("Are you sure you want to delete all Activity Log items? This cannot be undone.")) {
+                state.items = state.items.filter(item => item.type !== 'log');
+                saveState();
+                render();
+            }
+        };
+
+        const createItemElement = (item) => {
+            const li = document.createElement('li');
+            li.className = `item item-${item.type}`;
+            li.dataset.id = item.id;
+
+            const timestamp = document.createElement('div');
+            timestamp.className = 'item-timestamp';
+            let tsText = `Added: ${new Date(item.timestamp).toLocaleString()}`;
+            if(item.completedTimestamp) tsText += ` | Completed: ${new Date(item.completedTimestamp).toLocaleString()}`;
+            timestamp.textContent = tsText;
+
+            const mainDiv = document.createElement('div');
+            mainDiv.className = 'item-main';
+            
+            const textSpan = document.createElement('span');
+            textSpan.className = 'item-text';
+            textSpan.textContent = item.text;
+            textSpan.ondblclick = () => {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = textSpan.textContent;
+                input.className = 'item-text-editing';
+                textSpan.replaceWith(input);
+                input.focus();
+                input.onblur = () => updateItem(item.id, input.value);
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') input.blur();
+                    if (e.key === 'Escape') render();
+                };
+            };
+            
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'item-actions';
+            
+            if (item.type === 'todo') {
+                const completeBtn = document.createElement('button');
+                completeBtn.innerHTML = '&#10004;<span class="icon-tooltip">Complete</span>';
+                completeBtn.onclick = () => completeTask(item.id);
+                actionsDiv.appendChild(completeBtn);
+            } else {
+                const reopenBtn = document.createElement('button');
+                reopenBtn.innerHTML = '&#8634;<span class="icon-tooltip">Move to To-Do</span>';
+                reopenBtn.onclick = () => reopenTask(item.id);
+                actionsDiv.appendChild(reopenBtn);
+            }
+            
+            const editTagsBtn = document.createElement('button');
+            editTagsBtn.innerHTML = '&#127991;<span class="icon-tooltip">Edit Tags</span>';
+            editTagsBtn.onclick = () => toggleTagEditor(item.id);
+            actionsDiv.appendChild(editTagsBtn);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '&#128465;<span class="icon-tooltip">Delete</span>';
+            deleteBtn.onclick = () => deleteItem(item.id);
+            actionsDiv.appendChild(deleteBtn);
+
+            const tagsContainer = document.createElement('div');
+            tagsContainer.className = 'tags-container';
+            renderTags(item.tags, tagsContainer);
+            
+            mainDiv.appendChild(textSpan);
+            mainDiv.appendChild(actionsDiv);
+            li.appendChild(timestamp);
+            li.appendChild(mainDiv);
+            li.appendChild(tagsContainer);
+            return li;
+        };
+        
+        const renderTags = (tags, container) => {
+            container.innerHTML = '';
+            tags.forEach(tag => {
+                const tagEl = document.createElement('span');
+                tagEl.className = 'tag';
+                tagEl.textContent = tag;
+                tagEl.style.backgroundColor = getTagColor(tag);
+                tagEl.onclick = (e) => { e.stopPropagation(); toggleTagFilter(tag); };
+                container.appendChild(tagEl);
+            });
+        };
+        
+        window.toggleTagEditor = (id) => {
+            const item = state.items.find(i => i.id === id);
+            const li = document.querySelector(`[data-id='${id}']`);
+            const tagsContainer = li.querySelector('.tags-container');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = item.tags.join(', ');
+            input.className = 'tag-editing-input';
+            tagsContainer.innerHTML = '';
+            tagsContainer.appendChild(input);
+            input.focus();
+            input.onblur = () => {
+                const newTags = input.value.trim().split(',').map(t => t.trim()).filter(Boolean);
+                updateTags(id, newTags);
+            };
+            input.onkeydown = e => { if (e.key === 'Enter') input.blur(); };
+        };
+
+        const renderLists = () => {
+            let filteredItems = state.activeTagFilter ? state.items.filter(item => item.tags.includes(state.activeTagFilter)) : state.items;
+
+            const todos = filteredItems.filter(i => i.type === 'todo').sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+            const logs = filteredItems.filter(i => i.type === 'log').sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            const appendItems = (listEl, items, groupBy) => {
+                listEl.innerHTML = '';
+                if (groupBy && items.length > 0) {
+                    const grouped = items.reduce((acc, item) => {
+                        (item.tags.length > 0 ? item.tags : ['Untagged']).forEach(tag => {
+                            if (!acc[tag]) acc[tag] = [];
+                            acc[tag].push(item);
+                        });
+                        return acc;
+                    }, {});
+                    Object.keys(grouped).sort().forEach(tag => {
+                        const header = document.createElement('div');
+                        header.className = 'group-header';
+                        header.textContent = tag;
+                        header.onclick = (e) => {
+                            e.currentTarget.classList.toggle('collapsed');
+                            e.currentTarget.nextElementSibling.classList.toggle('collapsed');
+                        };
+                        listEl.appendChild(header);
+                        const groupContent = document.createElement('div');
+                        groupContent.className = 'group-content';
+                        grouped[tag].forEach(item => groupContent.appendChild(createItemElement(item)));
+                        listEl.appendChild(groupContent);
+                    });
+                } else {
+                    items.forEach(item => listEl.appendChild(createItemElement(item)));
+                }
+            };
+            
+            if (state.combinedView) {
+                todoColumn.style.display = 'none'; logColumn.style.display = 'none'; combinedColumn.style.display = 'block';
+                const combined = [...filteredItems].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+                appendItems(combinedList, combined, state.groupByTag);
+            } else {
+                todoColumn.style.display = 'block'; logColumn.style.display = 'block'; combinedColumn.style.display = 'none';
+                appendItems(todoList, todos, state.groupByTag);
+                appendItems(logList, logs, state.groupByTag);
+            }
+        };
+
+        const renderTagFilters = () => {
+            const allTags = [...new Set(state.items.flatMap(i => i.tags))].sort();
+            tagFiltersContainer.innerHTML = '<strong>Filter by Tag:</strong> ';
+            if(allTags.length === 0) {
+                 tagFiltersContainer.style.display = 'none';
+                 return;
+            }
+            tagFiltersContainer.style.display = 'block';
+
+            allTags.forEach(tag => {
+                const tagEl = document.createElement('span');
+                tagEl.className = 'tag';
+                if (tag === state.activeTagFilter) tagEl.classList.add('active-filter');
+                tagEl.textContent = tag;
+                tagEl.style.backgroundColor = getTagColor(tag);
+                tagEl.onclick = () => toggleTagFilter(tag);
+                tagFiltersContainer.appendChild(tagEl);
+            });
+             if (state.activeTagFilter) {
+                const clearButton = document.createElement('button');
+                clearButton.textContent = 'Clear Filter';
+                clearButton.style.marginLeft = '10px';
+                clearButton.onclick = () => toggleTagFilter(null);
+                tagFiltersContainer.appendChild(clearButton);
+            }
+        };
+
+        const toggleTagFilter = (tag) => {
+            state.activeTagFilter = state.activeTagFilter === tag ? null : tag;
+            render();
+        };
+        
+        const render = () => {
+            groupByTagBtn.classList.toggle('active', state.groupByTag);
+            combinedViewBtn.classList.toggle('active', state.combinedView);
+            renderTagFilters();
+            renderLists();
+        };
+        
+        const downloadCSV = () => {
+            if (state.items.length === 0) return;
+            const headers = ['ID', 'Type', 'Text', 'Tags', 'Timestamp', 'CompletedTimestamp'];
+            const rows = state.items.map(item => 
+                [item.id, item.type, `"${item.text.replace(/"/g, '""')}"`, item.tags.join(';'), item.timestamp, item.completedTimestamp || ''].join(',')
+            );
+            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", "activity_log.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+        
+        addTodoBtn.onclick = () => addItem('todo');
+        addLogBtn.onclick = () => addItem('log');
+
+        const handleInputKeydown = (e) => {
+            if (e.key === 'Enter') {
+                if (e.ctrlKey || e.metaKey) { // Ctrl+Enter or Cmd+Enter for logs
+                    e.preventDefault();
+                    addItem('log');
+                } else if (!e.shiftKey) { // Enter for todos
+                    e.preventDefault();
+                    addItem('todo');
+                }
+            }
+        };
+        
+        itemInput.onkeydown = handleInputKeydown;
+        tagsInput.onkeydown = handleInputKeydown;
+        
+        groupByTagBtn.onclick = () => { state.groupByTag = !state.groupByTag; render(); };
+        combinedViewBtn.onclick = () => { state.combinedView = !state.combinedView; render(); };
+        downloadCsvBtn.onclick = downloadCSV;
+        clearTodoBtn.onclick = clearTodos;
+        clearLogBtn.onclick = clearLogs;
+
+        itemInput.placeholder = "What's on your mind? (Enter for To-Do, Ctrl+Enter for Log)";
+
+        render();
+    });
+    </script>
+</body>
+</html>
