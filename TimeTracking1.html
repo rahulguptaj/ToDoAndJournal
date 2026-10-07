@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TimeTracker & To-Dos — Compact SPA</title>
+  <style>
+    :root {
+      --primary: #0288d1;
+      --primary-dark: #0277bd;
+      --primary-light: #e1f5fe;
+      --bg-body: #f5f7fa;
+      --bg-card: #ffffff;
+      --text-main: #263238;
+      --text-muted: #607d8b;
+      --border: #cfd8dc;
+      --danger: #d32f2f;
+      --danger-dark: #b71c1c;
+      --success: #2e7d32;
+      --tag-bg: #eceff1;
+      --tag-text: #37474f;
+      --radius: 6px;
+      --shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      padding: 10px;
+      line-height: 1.4;
+      font-size: 13px;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    /* Compact Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      background: var(--bg-card);
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-badge {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Standard Buttons */
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 12px;
+      padding: 5px 10px;
+      transition: background 0.15s ease, transform 0.05s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: var(--danger-dark); }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+    }
+    .btn-outline:hover { background: #eceff1; }
+
+    /* Layout Split: Timesheet (Left) & To-Dos (Right) */
+    .app-workspace {
+      display: grid;
+      grid-template-columns: 1fr 390px;
+      gap: 12px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .app-workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Common Card / Panel */
+    .panel {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      box-shadow: var(--shadow);
+      margin-bottom: 10px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Input Bar */
+    .entry-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      border: 1px solid transparent;
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      box-shadow: var(--shadow);
+    }
+    .entry-bar.is-editing {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(2, 136, 209, 0.2);
+      background: #fafcfe;
+    }
+
+    .input-field {
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+      background: #fff;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(2, 136, 209, 0.15);
+    }
+
+    .desc-input { flex: 3; min-width: 170px; }
+    .project-input { flex: 1.5; min-width: 120px; }
+    .date-input { flex: 1; min-width: 115px; }
+    .hours-input { flex: 0.8; min-width: 70px; }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 6px 10px;
+      box-shadow: var(--shadow);
+      border-left: 3px solid var(--primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .stat-card h4 {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .stat-card .value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* Controls: Views and Navigation */
+    .controls-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tabs {
+      display: inline-flex;
+      background: #e2e8f0;
+      border-radius: var(--radius);
+      padding: 2px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 11px;
+    }
+    .tab-btn.active {
+      background: var(--bg-card);
+      color: var(--primary);
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .period-navigator {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    /* Compact Tables */
+    .table-group {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .table-group-header {
+      background: #f1f5f9;
+      padding: 5px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .timesheet-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .timesheet-table th {
+      background: #fafbfc;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 5px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .timesheet-table td {
+      padding: 5px 10px;
+      border-bottom: 1px solid #edf2f7;
+      vertical-align: middle;
+    }
+
+    .timesheet-table tbody tr {
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+    .timesheet-table tbody tr:hover {
+      background: #f8fafc;
+    }
+    .timesheet-table tbody tr.selected-row {
+      background: var(--primary-light);
+      border-left: 3px solid var(--primary);
+    }
+
+    .project-pill {
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 600;
+      display: inline-block;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .col-desc { font-weight: 500; }
+    .col-proj { width: 120px; }
+    .col-time { width: 75px; text-align: right; font-family: monospace; font-size: 12px; font-weight: 600; }
+    .col-hours { width: 65px; text-align: right; color: var(--text-muted); font-size: 11px; }
+    .col-actions { width: 45px; text-align: center; }
+
+    .btn-icon-del {
+      background: transparent;
+      color: var(--text-muted);
+      padding: 2px 5px;
+      font-size: 11px;
+      border-radius: 4px;
+    }
+    .btn-icon-del:hover {
+      color: var(--danger);
+      background: #ffebee;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 24px 14px;
+      color: var(--text-muted);
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      font-size: 12px;
+    }
+
+    /* RIGHT COLUMN: To-Do Styles */
+    .todo-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .todo-input-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .todo-row-inputs {
+      display: flex;
+      gap: 6px;
+    }
+
+    .todo-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .todo-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.12s ease;
+    }
+    .todo-item:hover {
+      background: #fbfcfe;
+    }
+    .todo-item.completed {
+      background: #f8fafc;
+      opacity: 0.75;
+    }
+    .todo-item.completed .todo-text {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .todo-checkbox {
+      cursor: pointer;
+      width: 15px;
+      height: 15px;
+      accent-color: var(--primary);
+    }
+
+    .todo-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .todo-text {
+      font-weight: 500;
+      font-size: 12px;
+      cursor: pointer;
+      word-break: break-word;
+    }
+
+    .todo-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .todo-date-badge {
+      color: var(--text-muted);
+    }
+
+    .todo-actions {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .btn-todo-icon {
+      background: transparent;
+      padding: 3px 5px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-radius: 4px;
+    }
+    .btn-todo-icon:hover {
+      background: #f1f5f9;
+      color: var(--text-main);
+    }
+
+    /* Modal Backdrop & Shared Styling */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 16px;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    .modal-box h3 { margin-bottom: 6px; font-size: 14px; }
+    .modal-box p { margin-bottom: 12px; font-size: 12px; color: var(--text-muted); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+    /* Project Manager Modal Specifics */
+    .project-list-container {
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 10px;
+    }
+
+    .project-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 10px;
+      border-bottom: 1px solid #edf2f7;
+    }
+    .project-item:last-child {
+      border-bottom: none;
+    }
+    .project-name { font-weight: 500; font-size: 12px; }
+    .project-usage-badge {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-right: 6px;
+    }
+    .project-add-form {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .project-add-form input {
+      flex: 1;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Top Navigation -->
+  <header>
+    <div class="brand">
+      <div class="logo-badge">TT</div>
+      <strong>Timesheet &amp; To-Dos</strong>
+    </div>
+    <div class="header-actions">
+      <button class="btn-outline" onclick="openProjectManager()" title="Manage Project Names">
+        ⚙️ Projects
+      </button>
+      <button class="btn-outline" onclick="downloadCSV()" title="Export Timesheet to CSV">
+        📥 Timesheet CSV
+      </button>
+      <button class="btn-outline" onclick="exportTodosTxt()" title="Export To-Dos to plain text">
+        📝 To-Dos TXT
+      </button>
+      <button class="btn-danger" onclick="openDeleteModal()" title="Remove all stored entries">
+        🗑️ Delete All
+      </button>
+    </div>
+  </header>
+
+  <!-- Global Datalist for Shared Project Combobox -->
+  <datalist id="sharedProjectsList"></datalist>
+
+  <!-- Side-by-Side Main Layout -->
+  <div class="app-workspace">
+    
+    <!-- LEFT COLUMN: Timesheet Tracker -->
+    <div class="timesheet-column">
+      <!-- Input & Edit Bar -->
+      <div class="entry-bar" id="entryBar">
+        <input 
+          type="text" 
+          id="taskDesc" 
+          class="input-field desc-input" 
+          placeholder="What did you work on? (Enter to submit)" 
+        />
+
+        <input 
+          type="text" 
+          id="taskProject" 
+          list="sharedProjectsList" 
+          class="input-field project-input" 
+          placeholder="Project..." 
+        />
+
+        <input 
+          type="date" 
+          id="taskDate" 
+          class="input-field date-input" 
+        />
+
+        <input 
+          type="number" 
+          id="taskHours" 
+          class="input-field hours-input" 
+          placeholder="Hours (1.5)" 
+          step="0.25" 
+          min="0.05" 
+        />
+
+        <button id="submitBtn" class="btn-primary" onclick="handleFormSubmit()">+ Add</button>
+        <button id="cancelEditBtn" class="btn-outline" onclick="cancelEditing()" style="display: none;">Cancel</button>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h4>Today</h4>
+          <div class="value" id="statToday">00:00</div>
+        </div>
+        <div class="stat-card">
+          <h4>Current View</h4>
+          <div class="value" id="statPeriod">00:00</div>
+        </div>
+        <div class="stat-card">
+          <h4>Total All-Time</h4>
+          <div class="value" id="statAll">00:00</div>
+        </div>
+      </div>
+
+      <!-- Views & Date Selector -->
+      <div class="controls-row">
+        <div class="tabs">
+          <button class="tab-btn active" id="tabDay" onclick="switchView('day')">Daily</button>
+          <button class="tab-btn" id="tabWeek" onclick="switchView('week')">Weekly</button>
+          <button class="tab-btn" id="tabMonth" onclick="switchView('month')">Monthly</button>
+        </div>
+
+        <div class="period-navigator">
+          <button class="btn-outline" onclick="shiftPeriod(-1)">◀</button>
+          <span id="periodLabel">Loading...</span>
+          <button class="btn-outline" onclick="shiftPeriod(1)">▶</button>
+          <button class="btn-outline" onclick="goToToday()">Today</button>
+        </div>
+      </div>
+
+      <!-- Timesheet Tabular Listings -->
+      <div id="tasksList"></div>
+    </div>
+
+    <!-- RIGHT COLUMN: To-Dos Panel -->
+    <div class="todo-panel">
+      <div class="todo-input-card">
+        <div class="panel-header" style="margin-bottom: 6px; padding-bottom: 4px;">
+          <span class="panel-title">
+            <span>✅</span>
+            <span>Task To-Dos</span>
+            <span id="todoStats" style="font-size: 11px; font-weight: normal; color: var(--text-muted); margin-left: 4px;"></span>
+          </span>
+          <div class="tabs">
+            <button class="tab-btn active" id="filterAll" onclick="setTodoFilter('all')">All</button>
+            <button class="tab-btn" id="filterActive" onclick="setTodoFilter('active')">Active</button>
+            <button class="tab-btn" id="filterCompleted" onclick="setTodoFilter('completed')">Done</button>
+          </div>
+        </div>
+
+        <input 
+          type="text" 
+          id="todoTitleInput" 
+          class="input-field" 
+          placeholder="New To-Do title... (Press Enter)" 
+        />
+
+        <div class="todo-row-inputs">
+          <input 
+            type="text" 
+            id="todoProjectInput" 
+            list="sharedProjectsList" 
+            class="input-field" 
+            style="flex: 1;" 
+            placeholder="Project (optional)" 
+          />
+          <input 
+            type="date" 
+            id="todoDueDateInput" 
+            class="input-field" 
+            style="width: 125px;" 
+          />
+          <button class="btn-primary" onclick="addTodo()">+ Add</button>
+        </div>
+      </div>
+
+      <!-- To-Do Item List -->
+      <div class="todo-list" id="todoListContainer"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Project Management Modal -->
+<div id="projectModal" class="modal-backdrop">
+  <div class="modal-box">
+    <h3>Manage Projects</h3>
+    <p>Delete unused project names from dropdowns or create new ones.</p>
+    
+    <div class="project-add-form">
+      <input type="text" id="newProjectInput" placeholder="New project name..." />
+      <button class="btn-primary" onclick="addNewProjectFromModal()">+ Add</button>
+    </div>
+
+    <div class="project-list-container" id="projectListItems"></div>
+
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeProjectManager()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Safe Delete All Confirmation Modal -->
+<div id="deleteModal" class="modal-backdrop">
+  <div class="modal-box">
+    <h3 style="color: var(--danger-dark)">Confirm Permanent Deletion</h3>
+    <p>Are you sure you want to delete all logged timesheet records, to-dos, and project lists? This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-danger" onclick="confirmDeleteAll()">Yes, Delete All</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Storage Keys
+  const STORAGE_KEY_ENTRIES = "clockify_spa_entries_v4";
+  const STORAGE_KEY_PROJECTS = "clockify_spa_projects_v4";
+  const STORAGE_KEY_TODOS = "clockify_spa_todos_v4";
+
+  // Application State
+  let entries = JSON.parse(localStorage.getItem(STORAGE_KEY_ENTRIES)) || [];
+  let knownProjects = JSON.parse(localStorage.getItem(STORAGE_KEY_PROJECTS)) || ["Development", "Design", "Internal", "Meetings"];
+  let todos = JSON.parse(localStorage.getItem(STORAGE_KEY_TODOS)) || [];
+  let currentView = "day"; // 'day', 'week', 'month'
+  let currentTodoFilter = "all"; // 'all', 'active', 'completed'
+  let anchorDate = new Date();
+  let editingEntryId = null;
+
+  // DOM Elements
+  const entryBar = document.getElementById("entryBar");
+  const taskDesc = document.getElementById("taskDesc");
+  const taskProject = document.getElementById("taskProject");
+  const sharedProjectsList = document.getElementById("sharedProjectsList");
+  const taskDate = document.getElementById("taskDate");
+  const taskHours = document.getElementById("taskHours");
+  const submitBtn = document.getElementById("submitBtn");
+  const cancelEditBtn = document.getElementById("cancelEditBtn");
+  const periodLabel = document.getElementById("periodLabel");
+  const tasksList = document.getElementById("tasksList");
+  const deleteModal = document.getElementById("deleteModal");
+  const projectModal = document.getElementById("projectModal");
+  const projectListItems = document.getElementById("projectListItems");
+  const newProjectInput = document.getElementById("newProjectInput");
+
+  // To-Do DOM Elements
+  const todoTitleInput = document.getElementById("todoTitleInput");
+  const todoProjectInput = document.getElementById("todoProjectInput");
+  const todoDueDateInput = document.getElementById("todoDueDateInput");
+  const todoListContainer = document.getElementById("todoListContainer");
+  const todoStats = document.getElementById("todoStats");
+
+  function toISO(d) {
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  // Set default dates to today
+  taskDate.value = toISO(new Date());
+  todoDueDateInput.value = toISO(new Date());
+
+  function decimalToHHmm(decimalHours) {
+    const totalMinutes = Math.round(decimalHours * 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(h)}:${pad(m)}`;
+  }
+
+  function formatMinutes(totalMinutes) {
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(h)}:${pad(m)}`;
+  }
+
+  /* ================== Persistence ================== */
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(entries));
+    localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(knownProjects));
+    localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(todos));
+  }
+
+  function getAllUniqueProjects() {
+    const fromEntries = entries.map(e => e.project);
+    const fromTodos = todos.map(t => t.project).filter(Boolean);
+    return Array.from(new Set([...knownProjects, ...fromEntries, ...fromTodos])).filter(Boolean).sort();
+  }
+
+  function renderProjectDropdown() {
+    sharedProjectsList.innerHTML = "";
+    const allProjects = getAllUniqueProjects();
+    allProjects.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p;
+      sharedProjectsList.appendChild(opt);
+    });
+  }
+
+  /* ================== Project Management Modal Logic ================== */
+  function openProjectManager() {
+    renderProjectListModal();
+    projectModal.classList.add("open");
+  }
+
+  function closeProjectManager() {
+    projectModal.classList.remove("open");
+  }
+
+  function renderProjectListModal() {
+    const allProjects = getAllUniqueProjects();
+    projectListItems.innerHTML = "";
+
+    if (allProjects.length === 0) {
+      projectListItems.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-muted);">No projects found.</div>`;
+      return;
+    }
+
+    allProjects.forEach(proj => {
+      const timesheetCount = entries.filter(e => (e.project || "").toLowerCase() === proj.toLowerCase()).length;
+      const todoCount = todos.filter(t => (t.project || "").toLowerCase() === proj.toLowerCase()).length;
+      const totalCount = timesheetCount + todoCount;
+
+      const item = document.createElement("div");
+      item.className = "project-item";
+      item.innerHTML = `
+        <span class="project-name">${escapeHtml(proj)}</span>
+        <div style="display: flex; align-items: center;">
+          <span class="project-usage-badge">${timesheetCount} logs, ${todoCount} todos</span>
+          <button class="btn-icon-del" onclick="deleteProject('${escapeHtml(proj)}', ${totalCount})" title="Delete project">✕</button>
+        </div>
+      `;
+      projectListItems.appendChild(item);
+    });
+  }
+
+  function addNewProjectFromModal() {
+    const name = newProjectInput.value.trim();
+    if (!name) return;
+    if (!knownProjects.includes(name)) {
+      knownProjects.push(name);
+      saveState();
+      renderProjectDropdown();
+      renderProjectListModal();
+    }
+    newProjectInput.value = "";
+  }
+
+  newProjectInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addNewProjectFromModal();
+    }
+  });
+
+  function deleteProject(projName, usageCount) {
+    if (usageCount > 0) {
+      const confirmReassign = confirm(
+        `"${projName}" is currently linked to ${usageCount} item(s).\n\nDeleting it will reassign these items to "General". Proceed?`
+      );
+      if (!confirmReassign) return;
+
+      entries.forEach(e => {
+        if ((e.project || "").toLowerCase() === projName.toLowerCase()) {
+          e.project = "General";
+        }
+      });
+      todos.forEach(t => {
+        if ((t.project || "").toLowerCase() === projName.toLowerCase()) {
+          t.project = "General";
+        }
+      });
+      if (!knownProjects.includes("General")) {
+        knownProjects.push("General");
+      }
+    }
+
+    knownProjects = knownProjects.filter(p => p.toLowerCase() !== projName.toLowerCase());
+
+    saveState();
+    renderProjectDropdown();
+    renderProjectListModal();
+    render();
+    renderTodos();
+  }
+
+  /* ================== Timesheet Selection & Editing ================== */
+  function selectTaskForEdit(id) {
+    const item = entries.find(e => e.id === id);
+    if (!item) return;
+
+    editingEntryId = id;
+    taskDesc.value = item.description;
+    taskProject.value = item.project;
+    taskDate.value = item.date;
+    taskHours.value = item.decimalHours;
+
+    entryBar.classList.add("is-editing");
+    submitBtn.textContent = "✓ Update";
+    cancelEditBtn.style.display = "inline-flex";
+
+    taskDesc.focus();
+    render();
+  }
+
+  function cancelEditing() {
+    editingEntryId = null;
+    entryBar.classList.remove("is-editing");
+    submitBtn.textContent = "+ Add";
+    cancelEditBtn.style.display = "none";
+
+    taskDesc.value = "";
+    taskHours.value = "";
+    taskDate.value = toISO(new Date());
+    render();
+  }
+
+  function handleFormSubmit() {
+    const desc = taskDesc.value.trim() || "Untitled Task";
+    const project = taskProject.value.trim() || "General";
+    const date = taskDate.value || toISO(new Date());
+    const rawHours = parseFloat(taskHours.value);
+
+    if (isNaN(rawHours) || rawHours <= 0) {
+      alert("Please enter a valid positive duration in hours (e.g. 1.5).");
+      taskHours.focus();
+      return;
+    }
+
+    if (!knownProjects.includes(project)) {
+      knownProjects.push(project);
+    }
+
+    if (editingEntryId) {
+      const target = entries.find(e => e.id === editingEntryId);
+      if (target) {
+        target.description = desc;
+        target.project = project;
+        target.date = date;
+        target.decimalHours = rawHours;
+        target.timeHHmm = decimalToHHmm(rawHours);
+      }
+      cancelEditing();
+    } else {
+      const newEntry = {
+        id: "task_" + Date.now(),
+        description: desc,
+        project: project,
+        date: date,
+        decimalHours: rawHours,
+        timeHHmm: decimalToHHmm(rawHours)
+      };
+      entries.unshift(newEntry);
+      taskDesc.value = "";
+      taskHours.value = "";
+      taskDesc.focus();
+    }
+
+    saveState();
+    renderProjectDropdown();
+    render();
+  }
+
+  [taskDesc, taskProject, taskDate, taskHours].forEach(input => {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleFormSubmit();
+      } else if (e.key === "Escape" && editingEntryId) {
+        cancelEditing();
+      }
+    });
+  });
+
+  /* ================== Timesheet View Switching & Navigation ================== */
+  function switchView(view) {
+    currentView = view;
+    document.querySelectorAll(".timesheet-column .tabs .tab-btn").forEach((btn) => btn.classList.remove("active"));
+    if (view === "day") document.getElementById("tabDay").classList.add("active");
+    if (view === "week") document.getElementById("tabWeek").classList.add("active");
+    if (view === "month") document.getElementById("tabMonth").classList.add("active");
+    render();
+  }
+
+  function shiftPeriod(delta) {
+    if (currentView === "day") {
+      anchorDate.setDate(anchorDate.getDate() + delta);
+    } else if (currentView === "week") {
+      anchorDate.setDate(anchorDate.getDate() + delta * 7);
+    } else if (currentView === "month") {
+      anchorDate.setMonth(anchorDate.getMonth() + delta);
+    }
+    render();
+  }
+
+  function goToToday() {
+    anchorDate = new Date();
+    render();
+  }
+
+  function getWeekBounds(d) {
+    const temp = new Date(d);
+    const day = temp.getDay();
+    const diffToMon = temp.getDate() - day + (day === 0 ? -6 : 1);
+    const mon = new Date(temp.setDate(diffToMon));
+    mon.setHours(0, 0, 0, 0);
+
+    const sun = new Date(mon);
+    sun.setDate(sun.getDate() + 6);
+    sun.setHours(23, 59, 59, 999);
+
+    return { mon, sun };
+  }
+
+  /* ================== Timesheet Rendering ================== */
+  function render() {
+    updatePeriodLabel();
+    updateStats();
+
+    let filtered = [];
+
+    if (currentView === "day") {
+      const targetStr = toISO(anchorDate);
+      filtered = entries.filter((e) => e.date === targetStr);
+    } else if (currentView === "week") {
+      const { mon, sun } = getWeekBounds(anchorDate);
+      filtered = entries.filter((e) => {
+        const itemDate = new Date(e.date + "T00:00:00");
+        return itemDate >= mon && itemDate <= sun;
+      });
+    } else if (currentView === "month") {
+      const y = anchorDate.getFullYear();
+      const m = anchorDate.getMonth();
+      filtered = entries.filter((e) => {
+        const itemDate = new Date(e.date + "T00:00:00");
+        return itemDate.getFullYear() === y && itemDate.getMonth() === m;
+      });
+    }
+
+    if (filtered.length === 0) {
+      tasksList.innerHTML = `
+        <div class="empty-state">
+          <strong>No tasks logged for this period</strong>
+          <div style="margin-top: 3px; font-size: 11px;">Enter task details above and hit Enter to log hours.</div>
+        </div>
+      `;
+      return;
+    }
+
+    const grouped = {};
+    filtered.forEach((item) => {
+      if (!grouped[item.date]) grouped[item.date] = [];
+      grouped[item.date].push(item);
+    });
+
+    const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
+
+    let html = "";
+    sortedDates.forEach((dateStr) => {
+      const groupItems = grouped[dateStr];
+      const dayTotalMinutes = groupItems.reduce((acc, cur) => acc + Math.round(cur.decimalHours * 60), 0);
+      const friendlyDate = new Date(dateStr + "T00:00:00").toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+      });
+
+      html += `
+        <div class="table-group">
+          <div class="table-group-header">
+            <span>📅 ${friendlyDate}</span>
+            <span>Total: <strong>${formatMinutes(dayTotalMinutes)}</strong> (${(dayTotalMinutes / 60).toFixed(2)}h)</span>
+          </div>
+          <table class="timesheet-table">
+            <thead>
+              <tr>
+                <th class="col-desc">Description</th>
+                <th class="col-proj">Project</th>
+                <th class="col-time">Time</th>
+                <th class="col-hours">Hours</th>
+                <th class="col-actions">Del</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      groupItems.forEach((t) => {
+        const isSelected = t.id === editingEntryId;
+        html += `
+          <tr class="${isSelected ? 'selected-row' : ''}" onclick="selectTaskForEdit('${t.id}')" title="Click row to edit">
+            <td class="col-desc">${escapeHtml(t.description)}</td>
+            <td class="col-proj"><span class="project-pill">${escapeHtml(t.project)}</span></td>
+            <td class="col-time">${t.timeHHmm}</td>
+            <td class="col-hours">${Number(t.decimalHours).toFixed(2)}h</td>
+            <td class="col-actions" onclick="event.stopPropagation()">
+              <button class="btn-icon-del" onclick="deleteEntry('${t.id}')" title="Delete entry">✕</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+    });
+
+    tasksList.innerHTML = html;
+  }
+
+  function updatePeriodLabel() {
+    if (currentView === "day") {
+      periodLabel.textContent = anchorDate.toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+      });
+    } else if (currentView === "week") {
+      const { mon, sun } = getWeekBounds(anchorDate);
+      const opts = { month: "short", day: "numeric" };
+      periodLabel.textContent = `${mon.toLocaleDateString(undefined, opts)} – ${sun.toLocaleDateString(undefined, opts)}, ${sun.getFullYear()}`;
+    } else if (currentView === "month") {
+      periodLabel.textContent = anchorDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    }
+  }
+
+  function updateStats() {
+    const todayStr = toISO(new Date());
+    const todayMin = entries.filter((e) => e.date === todayStr).reduce((acc, c) => acc + Math.round(c.decimalHours * 60), 0);
+    const allMin = entries.reduce((acc, c) => acc + Math.round(c.decimalHours * 60), 0);
+
+    let periodMin = 0;
+    if (currentView === "day") {
+      const targetStr = toISO(anchorDate);
+      periodMin = entries.filter((e) => e.date === targetStr).reduce((acc, c) => acc + Math.round(c.decimalHours * 60), 0);
+    } else if (currentView === "week") {
+      const { mon, sun } = getWeekBounds(anchorDate);
+      periodMin = entries.filter((e) => {
+        const d = new Date(e.date + "T00:00:00");
+        return d >= mon && d <= sun;
+      }).reduce((acc, c) => acc + Math.round(c.decimalHours * 60), 0);
+    } else if (currentView === "month") {
+      const y = anchorDate.getFullYear();
+      const m = anchorDate.getMonth();
+      periodMin = entries.filter((e) => {
+        const d = new Date(e.date + "T00:00:00");
+        return d.getFullYear() === y && d.getMonth() === m;
+      }).reduce((acc, c) => acc + Math.round(c.decimalHours * 60), 0);
+    }
+
+    document.getElementById("statToday").textContent = formatMinutes(todayMin);
+    document.getElementById("statPeriod").textContent = formatMinutes(periodMin);
+    document.getElementById("statAll").textContent = formatMinutes(allMin);
+  }
+
+  function deleteEntry(id) {
+    if (editingEntryId === id) cancelEditing();
+    entries = entries.filter((e) => e.id !== id);
+    saveState();
+    renderProjectDropdown();
+    render();
+  }
+
+  /* ================== TO-DO OPERATIONS ================== */
+  function setTodoFilter(filter) {
+    currentTodoFilter = filter;
+    document.querySelectorAll(".todo-panel .tabs .tab-btn").forEach(b => b.classList.remove("active"));
+    if (filter === "all") document.getElementById("filterAll").classList.add("active");
+    if (filter === "active") document.getElementById("filterActive").classList.add("active");
+    if (filter === "completed") document.getElementById("filterCompleted").classList.add("active");
+    renderTodos();
+  }
+
+  function addTodo() {
+    const title = todoTitleInput.value.trim();
+    if (!title) {
+      todoTitleInput.focus();
+      return;
+    }
+
+    const project = todoProjectInput.value.trim() || "General";
+    const dueDate = todoDueDateInput.value || toISO(new Date());
+
+    if (project && !knownProjects.includes(project)) {
+      knownProjects.push(project);
+    }
+
+    const newTodo = {
+      id: "todo_" + Date.now(),
+      title: title,
+      project: project,
+      dueDate: dueDate,
+      completed: false,
+      createdAt: new Date().toISOString()
+    };
+
+    todos.unshift(newTodo);
+    saveState();
+    renderProjectDropdown();
+
+    todoTitleInput.value = "";
+    todoTitleInput.focus();
+    renderTodos();
+  }
+
+  // Allow enter key submission for To-Dos
+  [todoTitleInput, todoProjectInput, todoDueDateInput].forEach(inp => {
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addTodo();
+      }
+    });
+  });
+
+  function toggleTodoStatus(id) {
+    const item = todos.find(t => t.id === id);
+    if (item) {
+      item.completed = !item.completed;
+      saveState();
+      renderTodos();
+    }
+  }
+
+  function deleteTodo(id) {
+    todos = todos.filter(t => t.id !== id);
+    saveState();
+    renderProjectDropdown();
+    renderTodos();
+  }
+
+  function editTodoText(id) {
+    const item = todos.find(t => t.id === id);
+    if (!item) return;
+
+    const newTitle = prompt("Edit To-Do description:", item.title);
+    if (newTitle !== null && newTitle.trim() !== "") {
+      item.title = newTitle.trim();
+      saveState();
+      renderTodos();
+    }
+  }
+
+  // Pre-fill timesheet form directly from a To-Do
+  function copyTodoToTimesheet(id) {
+    const item = todos.find(t => t.id === id);
+    if (!item) return;
+
+    taskDesc.value = item.title;
+    taskProject.value = item.project || "General";
+    taskDate.value = toISO(new Date());
+    taskHours.focus();
+  }
+
+  function renderTodos() {
+    let filtered = [...todos];
+    if (currentTodoFilter === "active") {
+      filtered = filtered.filter(t => !t.completed);
+    } else if (currentTodoFilter === "completed") {
+      filtered = filtered.filter(t => t.completed);
+    }
+
+    const activeCount = todos.filter(t => !t.completed).length;
+    todoStats.textContent = `(${activeCount} pending)`;
+
+    if (filtered.length === 0) {
+      todoListContainer.innerHTML = `
+        <div class="empty-state" style="padding: 18px 10px;">
+          <strong>No ${currentTodoFilter !== 'all' ? currentTodoFilter : ''} To-Dos</strong>
+          <div style="margin-top: 3px; font-size: 11px;">Add items above to keep track of tasks.</div>
+        </div>
+      `;
+      return;
+    }
+
+    let html = "";
+    filtered.forEach(t => {
+      html += `
+        <div class="todo-item ${t.completed ? 'completed' : ''}">
+          <input 
+            type="checkbox" 
+            class="todo-checkbox" 
+            ${t.completed ? 'checked' : ''} 
+            onchange="toggleTodoStatus('${t.id}')" 
+            title="Mark done" 
+          />
+          <div class="todo-content">
+            <span class="todo-text" onclick="editTodoText('${t.id}')" title="Click to edit title">${escapeHtml(t.title)}</span>
+            <div class="todo-meta">
+              <span class="project-pill" style="font-size: 10px; padding: 1px 6px;">${escapeHtml(t.project || 'General')}</span>
+              ${t.dueDate ? `<span class="todo-date-badge">Due: ${t.dueDate}</span>` : ''}
+            </div>
+          </div>
+          <div class="todo-actions">
+            <button class="btn-todo-icon" onclick="copyTodoToTimesheet('${t.id}')" title="Log in Timesheet">⏱️</button>
+            <button class="btn-icon-del" onclick="deleteTodo('${t.id}')" title="Delete To-Do">✕</button>
+          </div>
+        </div>
+      `;
+    });
+
+    todoListContainer.innerHTML = html;
+  }
+
+  /* ================== Plain-Text To-Dos Export ================== */
+  function exportTodosTxt() {
+    if (todos.length === 0) {
+      alert("No To-Dos available to export.");
+      return;
+    }
+
+    const pad = (str, len) => (str + " ".repeat(len)).slice(0, len);
+    const dateStamp = toISO(new Date());
+
+    let txt = `====================================================\n`;
+    txt += `              TO-DO LIST EXPORT                     \n`;
+    txt += `              Export Date: ${dateStamp}             \n`;
+    txt += `====================================================\n\n`;
+
+    const pending = todos.filter(t => !t.completed);
+    const completed = todos.filter(t => t.completed);
+
+    txt += `[ PENDING TASKS (${pending.length}) ]\n`;
+    txt += `----------------------------------------------------\n`;
+    if (pending.length === 0) {
+      txt += `  No pending tasks.\n`;
+    } else {
+      pending.forEach((t, idx) => {
+        txt += `${idx + 1}. [ ] ${t.title}\n`;
+        txt += `     Project: ${t.project || 'General'} | Due: ${t.dueDate || 'N/A'}\n\n`;
+      });
+    }
+
+    txt += `\n[ COMPLETED TASKS (${completed.length}) ]\n`;
+    txt += `----------------------------------------------------\n`;
+    if (completed.length === 0) {
+      txt += `  No completed tasks.\n`;
+    } else {
+      completed.forEach((t, idx) => {
+        txt += `${idx + 1}. [X] ${t.title}\n`;
+        txt += `     Project: ${t.project || 'General'} | Due: ${t.dueDate || 'N/A'}\n\n`;
+      });
+    }
+
+    txt += `====================================================\n`;
+    txt += `Total Items: ${todos.length} (Pending: ${pending.length}, Done: ${completed.length})\n`;
+
+    const blob = new Blob([txt], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `todos_export_${dateStamp}.txt`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  /* ================== Single & Bulk Delete ================== */
+  function openDeleteModal() {
+    deleteModal.classList.add("open");
+  }
+
+  function closeDeleteModal() {
+    deleteModal.classList.remove("open");
+  }
+
+  function confirmDeleteAll() {
+    entries = [];
+    todos = [];
+    knownProjects = ["Development", "Design", "Internal", "Meetings"];
+    cancelEditing();
+    saveState();
+    renderProjectDropdown();
+    closeDeleteModal();
+    render();
+    renderTodos();
+  }
+
+  /* ================== Export CSV (Timesheet) ================== */
+  function downloadCSV() {
+    if (entries.length === 0) {
+      alert("No logged tasks available to export.");
+      return;
+    }
+
+    const headers = [
+      "Date",
+      "Project",
+      "Description",
+      "Time in HH:mm",
+      "Duration (Hours Decimal)",
+      "Entry ID"
+    ];
+
+    const rows = entries.map((e) => [
+      `"${e.date}"`,
+      `"${(e.project || "").replace(/"/g, '""')}"`,
+      `"${(e.description || "").replace(/"/g, '""')}"`,
+      `"${e.timeHHmm}"`,
+      `"${Number(e.decimalHours).toFixed(2)}"`,
+      `"${e.id}"`
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `timesheet_${toISO(new Date())}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // Initialize Application
+  renderProjectDropdown();
+  render();
+  renderTodos();
+</script>
+</body>
+</html>
